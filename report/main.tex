@@ -1,0 +1,103 @@
+\documentclass[12pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{a4paper, margin=2.5cm}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage[style=alphabetic, backend=biber]{biblatex}
+% Code-Listing Style
+\lstset{
+    backgroundcolor=\color{gray!10},
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    keywordstyle=\color{blue},
+    stringstyle=\color{red},
+    commentstyle=\color{green!50!black},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    showstringspaces=false
+}
+
+\title{
+    \vspace{-2cm}
+    \large Hausarbeit im Modul Einführung in Python \\
+    \vspace{0.5cm}
+    \textbf{\huge Dungeon Autobattler} \\
+    \vspace{0.5cm}
+    \large Dozent: Dr. Konrad Völkel \\
+    Heinrich-Heine-Universität Düsseldorf
+}
+\author{Felix Weßels \\ Matrikelnummer: 3175987}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\newpage
+\setcounter{page}{1}
+
+\tableofcontents
+\newpage
+
+\section{Einleitung}
+\subsection{Motivation}
+% Warum dieses Projekt?
+\subsection{Zielsetzung}
+% Variante der Projektskizze: Was soll die Software am Ende können? (Minimalanforderungen)
+
+\section{Theoretische Grundlagen \& Werkzeuge}
+\subsection{Technologien \& Bibliotheken}
+% Welche Pakete/Bibliotheken kamen zum Einsatz? (z.B. ruff, mypy, pytest, externe APIs)
+\subsection{Mensch vs. KI: Die Rolle von AI Assistance}
+% Generelle Vorüberlegungen zum Einsatz von LLMs im Entwicklungsprozess.
+
+\section{Konzept \& Implementierung}
+\subsection{Programmstruktur, Kernlogik \& Datenverarbeitung}
+% Architektur beschreiben. Vermeiden: Code Zeile für Zeile nacherzählen!
+% Stattdessen konzeptionelle Entscheidungen erklären.
+
+\subsection{Warum so?}
+% Wahl bestimmter Entwurfsmuster, OOP vs. funktional.
+% Welche Alternativen wurden verworfen und warum? (Begründe Entscheidungen!)
+
+\subsection{KI-Konsultation bei Design-Entscheidungen}
+% Wurde die KI bei Planung/Architektur gefragt?
+% Was wurde übernommen, wo wurde abgewichen (aufgrund menschlicher Logik)?
+
+\subsection{Code-Generierung: Was wurde wie programmiert?}
+\textbf{KI-generiert:} % Welche Module/Funktionen/Tests (z.B. Boilerplate, Regex)? Warum war es hier sinnvoll?
+\newline
+\textbf{Selbst programmiert:} % Kernlogiken, Workarounds, weil KI den Kontext nicht verstand.
+
+\subsection{Prompt-Engineering \& Iteration}
+% Wie sah die Zusammenarbeit aus? Wurde Code blind übernommen oder manuell korrigiert (Halluzinationen)?
+
+\section{Ergebnisse}
+\subsection{Funktionsnachweis}
+% Outputs, Plots oder Screenshots einbinden, um Funktionalität zu belegen.
+% Link zum Quelltext: \url{https://github.com/DeinName/DeinRepo} oder Hinweis auf Sciebo-Upload.
+\subsection{Beispiel-Durchlauf}
+% Zeige, dass auch falsche Nutzereingaben behandelt werden und nicht zum Absturz führen.
+
+\section{Diskussion \& Fazit}
+\subsection{Inwiefern wurde das Ziel erreicht?}
+\subsection{Herausforderungen \& Abweichung vom Plan}
+% Was lief nicht wie geplant? Welche Features aus der Projektskizze wurden weggelassen/geändert?
+\subsection{Kritische Würdigung \& Reflexion}
+% Was lief gut, wo gab es unerwartete Probleme (Technik oder KI-Zusammenarbeit)? Was würdest du nächstes Mal anders machen?
+\subsection{Ausblick}
+% Darf subjektiv sein. Welche Features könnten in Zukunft hinzugefügt werden?
+
+\newpage
+\printbibliography
+
+\newpage
+\appendix
+\end{document}
