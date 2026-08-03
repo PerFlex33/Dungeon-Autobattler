@@ -16,7 +16,7 @@ def test_alle_module_importierbar() -> None:
     ):
         try:
             importlib.import_module(name)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             fehler.append(f"{name}: {e}")
     assert not fehler, f"Import-Fehler: {fehler}"
 
