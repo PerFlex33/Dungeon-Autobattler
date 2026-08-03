@@ -1,0 +1,19 @@
+[project]
+name = "dungeon-autobattler"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest", "mypy", "ruff", "interrogate", "pre-commit"]
+
+[tool.ruff]
+line-length = 80
+
+[tool.mypy]
+strict = true
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules"
+testpaths = ["src", "tests"]
