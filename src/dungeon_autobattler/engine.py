@@ -79,11 +79,16 @@ class Engine:
     """
 
     def __init__(
-        self, player: Character, game_map: GameMap, start_pos: Position
+        self,
+        player: Character,
+        game_map: GameMap,
+        start_pos: Position,
+        difficulty: float = 1.0,
     ) -> None:
         self.player = player
         self.game_map = game_map
         self.player_pos = start_pos
+        self.difficulty = difficulty
         self.enemies: dict[tuple[int, int], Character] = {}
         self.shop_items: list[Item] = []
 
@@ -207,6 +212,7 @@ class Engine:
         data = {
             "player": asdict(self.player),
             "player_pos": asdict(self.player_pos),
+            "difficulty": self.difficulty,
             "map": {
                 "width": self.game_map.width,
                 "height": self.game_map.height,
@@ -264,19 +270,28 @@ class Engine:
 
             # Engine erstellen
             pos = Position(**data["player_pos"])
-            engine = cls(player, g_map, pos)
+            difficulty = data.get("difficulty", 1.0)
+            engine = cls(player, g_map, pos, difficulty)
 
             # Gegner rekonstruieren
+            from dungeon_autobattler.models import Enemy, EnemyType
+
             for e_entry in data["enemies"]:
                 e_data = e_entry["data"]
                 e_stats = Stats(**e_data["base_stats"])
-                enemy = Character(
+                enemy = Enemy(
                     name=e_data["name"],
                     base_stats=e_stats,
                     items=[],
                     gold=e_data.get("gold", 0),
                     xp=e_data.get("xp", 0),
                     level=e_data.get("level", 1),
+                    enemy_type=EnemyType(
+                        e_data.get("enemy_type", EnemyType.GOBLIN.value)
+                    )
+                    if isinstance(e_data.get("enemy_type"), str)
+                    else EnemyType.GOBLIN,
+                    loot_value=e_data.get("loot_value", 1.0),
                 )
                 engine.enemies[(e_entry["x"], e_entry["y"])] = enemy
 

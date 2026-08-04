@@ -2,6 +2,7 @@
 Haupteinstiegspunkt für das Spiel mit Pygame-GUI.
 """
 
+import random
 import sys
 
 import pygame
@@ -11,9 +12,11 @@ from dungeon_autobattler.generator import DungeonGenerator
 from dungeon_autobattler.models import (
     Character,
     DungeonError,
+    EnemyType,
     Item,
     Rarity,
     Stats,
+    create_enemy,
 )
 
 # Konstanten
@@ -40,14 +43,18 @@ def main() -> None:
     player = Character(name="Held", base_stats=player_stats, items=[])
 
     start_pos = generator.find_free_tile(game_map)
-    engine = Engine(player, game_map, start_pos)
+    engine = Engine(player, game_map, start_pos, difficulty=1.2)
 
-    # Gegner spawnen
-    enemy_stats = Stats(hp=30, max_hp=30, ad=5, defense=2)
-    enemy_pos = generator.find_free_tile(game_map)
-    engine.spawn_enemy(
-        enemy_pos.x, enemy_pos.y, Character("Goblin", enemy_stats, [], gold=10)
-    )
+    # Mehrere verschiedene Gegner spawnen
+    enemy_types = list(EnemyType)
+    for _ in range(5):
+        enemy_type = random.choice(enemy_types)
+        enemy_pos = generator.find_free_tile(game_map)
+        engine.spawn_enemy(
+            enemy_pos.x,
+            enemy_pos.y,
+            create_enemy(enemy_type, difficulty_multiplier=engine.difficulty),
+        )
 
     # Shop einrichten
     shop_pos = generator.find_free_tile(game_map)
