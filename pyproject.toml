@@ -3,7 +3,7 @@ name = "dungeon-autobattler"
 version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = ["pygame-ce"]
 
 [project.optional-dependencies]
 dev = ["pytest", "mypy", "ruff", "interrogate", "pre-commit"]
