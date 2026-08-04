@@ -72,6 +72,8 @@ class Character:
     base_stats: Stats
     items: list[Item]
     gold: int = 0
+    xp: int = 0
+    level: int = 1
 
     @property
     def current_stats(self) -> Stats:
@@ -104,4 +106,24 @@ class Character:
         """Reduziert die HP unter Berücksichtigung der Verteidigung."""
         damage = max(1, amount - self.base_stats.defense)
         self.base_stats.hp = max(0, self.base_stats.hp - damage)
+
+    def gain_xp(self, amount: int) -> bool:
+        """
+        Erhöht XP und prüft auf Level-Up.
+
+        Returns:
+            True wenn ein Level-Up stattgefunden hat.
+        """
+        self.xp += amount
+        xp_needed = self.level * 50
+        if self.xp >= xp_needed:
+            self.xp -= xp_needed
+            self.level += 1
+            # Stats verbessern bei Level Up
+            self.base_stats.max_hp += 20
+            self.base_stats.hp = self.base_stats.max_hp
+            self.base_stats.ad += 5
+            self.base_stats.defense += 2
+            return True
+        return False
 
