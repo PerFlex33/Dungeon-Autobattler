@@ -1,7 +1,7 @@
 [project]
 name = "dungeon-autobattler"
 version = "0.1.0"
-description = "Add your description here"
+description = "2d Dungeon-Crawler mit Autoba ler kämpfen"
 requires-python = ">=3.12"
 dependencies = ["pygame-ce"]
 

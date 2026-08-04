@@ -83,14 +83,7 @@ def main() -> None:
                         engine.save_game("savegame.json")
                     except DungeonError as e:
                         print(f"Fehler beim Speichern: {e}")
-                elif event.key == pygame.K_F9:
-                    try:
-                        engine = Engine.load_game("savegame.json")
-                        game_map = engine.game_map
-                        show_inventory = False
-                    except DungeonError as e:
-                        print(f"Fehler beim Laden: {e}")
-                elif event.key == pygame.K_l:
+                elif event.key == pygame.K_F9 or event.key == pygame.K_l:
                     try:
                         engine = Engine.load_game("savegame.json")
                         game_map = engine.game_map
