@@ -7,7 +7,13 @@ import sys
 import pygame
 
 from dungeon_autobattler.engine import Engine, GameMap, Position, TileType
-from dungeon_autobattler.models import Character, Item, Rarity, Stats
+from dungeon_autobattler.models import (
+    Character,
+    DungeonError,
+    Item,
+    Rarity,
+    Stats,
+)
 
 # Konstanten
 TILE_SIZE = 40
@@ -66,13 +72,16 @@ def main() -> None:
                 elif event.key == pygame.K_RIGHT:
                     engine.move_player(1, 0)
                 elif event.key == pygame.K_s:
-                    engine.save_game("savegame.json")
+                    try:
+                        engine.save_game("savegame.json")
+                    except DungeonError as e:
+                        print(f"Fehler beim Speichern: {e}")
                 elif event.key == pygame.K_l:
                     try:
                         engine = Engine.load_game("savegame.json")
                         game_map = engine.game_map
-                    except FileNotFoundError:
-                        pass
+                    except DungeonError as e:
+                        print(f"Fehler beim Laden: {e}")
 
         # 2. Zeichnen
         screen.fill((30, 30, 30))  # Dunkler Hintergrund

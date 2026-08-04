@@ -18,6 +18,22 @@ class Rarity(Enum):
     LEGENDARY = "legendary"
 
 
+class DungeonError(Exception):
+    """Basis-Exception für das Spiel."""
+
+
+class LoadGameError(DungeonError):
+    """Wird geworfen, wenn beim Laden ein Fehler auftritt."""
+
+
+class SaveGameError(DungeonError):
+    """Wird geworfen, wenn beim Speichern ein Fehler auftritt."""
+
+
+class InvalidMoveError(DungeonError):
+    """Wird geworfen, wenn eine Bewegung ungültig ist."""
+
+
 @dataclass
 class Stats:
     """
@@ -39,6 +55,17 @@ class Stats:
     max_hp: int
     ad: int
     defense: int
+
+    def __post_init__(self) -> None:
+        """Validierung der Stats nach Initialisierung."""
+        if self.max_hp < 0:
+            raise ValueError("Maximale HP dürfen nicht negativ sein.")
+        self.hp = max(self.hp, 0)
+        self.hp = min(self.hp, self.max_hp)
+        if self.ad < 0:
+            raise ValueError("Angriffskraft (ad) darf nicht negativ sein.")
+        if self.defense < 0:
+            raise ValueError("Verteidigung darf nicht negativ sein.")
 
 
 @dataclass
@@ -94,17 +121,24 @@ class Character:
             total_ad += item.bonus_stats.ad
             total_def += item.bonus_stats.defense
 
+        # HP kann nicht höher als max_hp sein (durch Items)
+        total_hp = min(total_hp, total_max_hp)
+
         return Stats(
             hp=total_hp, max_hp=total_max_hp, ad=total_ad, defense=total_def
         )
 
     def is_alive(self) -> bool:
         """Prüft, ob der Charakter noch HP hat."""
-        return self.base_stats.hp > 0
+        return self.current_stats.hp > 0
 
     def take_damage(self, amount: int) -> None:
         """Reduziert die HP unter Berücksichtigung der Verteidigung."""
-        damage = max(1, amount - self.base_stats.defense)
+        if amount < 0:
+            raise ValueError("Schadenswert darf nicht negativ sein.")
+
+        stats = self.current_stats
+        damage = max(1, amount - stats.defense)
         self.base_stats.hp = max(0, self.base_stats.hp - damage)
 
     def gain_xp(self, amount: int) -> bool:

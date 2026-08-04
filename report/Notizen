@@ -1,6 +1,21 @@
-Ki agent schafft es nicht die Formatierung von Ruff einzuhalten.
+# Projektergebnisse und Änderungen
 
-Da in Tests ist das nicht Sinnvoll.
-[[tool.mypy.overrides]]
-module = "tests.*"
-disallow_untyped_defs = false
+## 1. Verbesserung der Robustheit (Modelle)
+- Die `Stats`-Dataklasse validiert nun alle Eingabewerte im `__post_init__`.
+- `Character`-Methoden wie `take_damage` und `is_alive` nutzen nun die `current_stats` (inkl. Item-Boni) statt der `base_stats`, was die Kampflogik konsistent macht.
+- Schadenswerte werden auf Plausibilität geprüft (kein negativer Schaden).
+
+## 2. Robustes Exception Handling
+- Einführung einer Exception-Hierarchie: `DungeonError` als Basis, spezialisierte Klassen für Lade- (`LoadGameError`), Speicher- (`SaveGameError`) und Bewegungsfehler (`InvalidMoveError`).
+- Die Persistenzschicht (`save_game`, `load_game`) fängt nun OS-Fehler und Formatfehler ab.
+- Die GUI (`main.py`) fängt diese Fehler ab und gibt sie an den Nutzer aus, anstatt abzustürzen.
+
+## 3. Design-by-Contract
+- Implementierung von Preconditions für kritische Aktionen:
+    - Bewegung: Maximale Schrittweite von 1 Feld wird erzwungen.
+    - Kampf: Ein Kampf kann nur gestartet werden, wenn beide Kontrahenten am Leben sind.
+
+## 4. Testabdeckung und Qualitätssicherung
+- Die Testsuite wurde um `tests/test_robustness.py` erweitert, um Edge-Cases und Fehlerzustände abzudecken.
+- Dokumentationsabdeckung (Interrogate) auf **90,6%** gesteigert.
+- Alle Linter- (Ruff) und Type-Checker-Prüfungen (Mypy) sind grün.

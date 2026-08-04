@@ -21,4 +21,4 @@ jobs:
       - name: Run tests
         run: pytest
       - name: Check docstring coverage
-        run: interrogate src/ --fail-under 20
+        run: interrogate src/ --fail-under 80

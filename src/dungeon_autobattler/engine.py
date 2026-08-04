@@ -6,7 +6,15 @@ import json
 from dataclasses import asdict, dataclass
 from enum import Enum
 
-from dungeon_autobattler.models import Character, Item, Rarity
+from dungeon_autobattler.models import (
+    Character,
+    DungeonError,
+    InvalidMoveError,
+    Item,
+    LoadGameError,
+    Rarity,
+    SaveGameError,
+)
 
 
 class TileType(Enum):
@@ -95,6 +103,9 @@ class Engine:
         Returns:
             True wenn Bewegung erfolgreich, sonst False.
 
+        Raises:
+            InvalidMoveError: Wenn dx oder dy ungültig sind.
+
         Examples:
             >>> from dungeon_autobattler.models import Character, Stats
             >>> stats = Stats(10, 10, 2, 1)
@@ -110,6 +121,12 @@ class Engine:
             >>> eng.move_player(-1, 0) # Außerhalb der Map
             False
         """
+        # Design-by-Contract: Preconditions
+        if abs(dx) > 1 or abs(dy) > 1:
+            raise InvalidMoveError("Spieler kann nur maximal 1 Feld ziehen.")
+        if dx == 0 and dy == 0:
+            return True
+
         new_pos = self.player_pos + Position(dx, dy)
         if self.game_map.is_walkable(new_pos):
             tile = self.game_map.tiles[new_pos.y][new_pos.x]
@@ -161,7 +178,16 @@ class Engine:
 
         Returns:
             True wenn der Spieler gewinnt, False wenn er stirbt.
+
+        Raises:
+            DungeonError: Wenn der Kampf nicht gestartet werden kann.
         """
+        # Design-by-Contract: Preconditions
+        if not self.player.is_alive():
+            raise DungeonError("Ein toter Spieler kann nicht kämpfen.")
+        if not enemy.is_alive():
+            raise DungeonError("Gegner ist bereits tot.")
+
         player_stats = self.player.current_stats
         enemy_stats = enemy.current_stats
 
@@ -193,51 +219,67 @@ class Engine:
                 for pos, enemy in self.enemies.items()
             ],
         }
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(data, f)
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+        except OSError as e:
+            raise SaveGameError(f"Fehler beim Speichern: {e}") from e
 
     @classmethod
     def load_game(cls, filepath: str) -> "Engine":
         """Lädt einen Spielzustand aus einer JSON-Datei."""
         from dungeon_autobattler.models import Item, Stats
 
-        with open(filepath, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
 
-        # Spieler rekonstruieren
-        p_data = data["player"]
-        p_stats = Stats(**p_data["base_stats"])
-        player = Character(
-            name=p_data["name"],
-            base_stats=p_stats,
-            items=[
-                Item(i["name"], Rarity(i["rarity"]), Stats(**i["bonus_stats"]))
-                for i in p_data["items"]
-            ]
-            if "items" in p_data
-            else [],
-            gold=p_data.get("gold", 0),
-        )
-
-        # Map rekonstruieren
-        m_data = data["map"]
-        g_map = GameMap(m_data["width"], m_data["height"])
-        g_map.tiles = [[TileType(t) for t in row] for row in m_data["tiles"]]
-
-        # Engine erstellen
-        pos = Position(**data["player_pos"])
-        engine = cls(player, g_map, pos)
-
-        # Gegner rekonstruieren
-        for e_entry in data["enemies"]:
-            e_data = e_entry["data"]
-            e_stats = Stats(**e_data["base_stats"])
-            enemy = Character(
-                name=e_data["name"],
-                base_stats=e_stats,
-                items=[],
-                gold=e_data.get("gold", 0),
+            # Spieler rekonstruieren
+            p_data = data["player"]
+            p_stats = Stats(**p_data["base_stats"])
+            player = Character(
+                name=p_data["name"],
+                base_stats=p_stats,
+                items=[
+                    Item(
+                        i["name"],
+                        Rarity(i["rarity"]),
+                        Stats(**i["bonus_stats"]),
+                    )
+                    for i in p_data["items"]
+                ]
+                if "items" in p_data
+                else [],
+                gold=p_data.get("gold", 0),
+                xp=p_data.get("xp", 0),
+                level=p_data.get("level", 1),
             )
-            engine.enemies[(e_entry["x"], e_entry["y"])] = enemy
 
-        return engine
+            # Map rekonstruieren
+            m_data = data["map"]
+            g_map = GameMap(m_data["width"], m_data["height"])
+            g_map.tiles = [
+                [TileType(t) for t in row] for row in m_data["tiles"]
+            ]
+
+            # Engine erstellen
+            pos = Position(**data["player_pos"])
+            engine = cls(player, g_map, pos)
+
+            # Gegner rekonstruieren
+            for e_entry in data["enemies"]:
+                e_data = e_entry["data"]
+                e_stats = Stats(**e_data["base_stats"])
+                enemy = Character(
+                    name=e_data["name"],
+                    base_stats=e_stats,
+                    items=[],
+                    gold=e_data.get("gold", 0),
+                    xp=e_data.get("xp", 0),
+                    level=e_data.get("level", 1),
+                )
+                engine.enemies[(e_entry["x"], e_entry["y"])] = enemy
+
+            return engine
+        except (OSError, json.JSONDecodeError, KeyError, ValueError) as e:
+            raise LoadGameError(f"Fehler beim Laden: {e}") from e
