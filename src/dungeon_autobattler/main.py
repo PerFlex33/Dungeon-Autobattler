@@ -79,7 +79,9 @@ def main() -> None:
 
         for y, row in enumerate(game_map.tiles):
             for x, tile in enumerate(row):
-                rect = pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+                rect = pygame.Rect(
+                    x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE
+                )
                 if tile == TileType.WALL:
                     pygame.draw.rect(screen, (100, 100, 100), rect)
                 elif tile == TileType.EMPTY:
@@ -99,7 +101,9 @@ def main() -> None:
         pygame.draw.rect(screen, (0, 200, 0), player_rect)
 
         # UI zeichnen (Gold und HP)
-        gold_text = font.render(f"Gold: {engine.player.gold}", True, (255, 215, 0))
+        gold_text = font.render(
+            f"Gold: {engine.player.gold}", True, (255, 215, 0)
+        )
         hp_text = font.render(
             f"HP: {engine.player.base_stats.hp}/{engine.player.base_stats.max_hp}",
             True,

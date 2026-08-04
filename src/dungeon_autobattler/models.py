@@ -126,4 +126,3 @@ class Character:
             self.base_stats.defense += 2
             return True
         return False
-

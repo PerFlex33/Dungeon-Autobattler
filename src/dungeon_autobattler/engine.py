@@ -121,9 +121,11 @@ class Engine:
                         # Belohnungen
                         self.player.gold += enemy.gold
                         self.player.gain_xp(25)  # Fester XP Wert für Demo
-                        
+
                         # Gegner besiegt, Feld wird leer
-                        self.game_map.set_tile(new_pos.x, new_pos.y, TileType.EMPTY)
+                        self.game_map.set_tile(
+                            new_pos.x, new_pos.y, TileType.EMPTY
+                        )
                         del self.enemies[(new_pos.x, new_pos.y)]
                         self.player_pos = new_pos
                         return True
@@ -138,14 +140,14 @@ class Engine:
                         self.player.items.append(item)
                         self.shop_items.pop(0)
                         # Shop-Tile bleibt betretbar
-                
+
                 self.player_pos = new_pos
                 return True
             elif tile == TileType.EXIT:
                 print("Sieg! Du hast den Ausgang erreicht.")
                 self.player_pos = new_pos
                 return True
-            
+
             self.player_pos = new_pos
             return True
         return False
@@ -182,7 +184,9 @@ class Engine:
             "map": {
                 "width": self.game_map.width,
                 "height": self.game_map.height,
-                "tiles": [[t.value for t in row] for row in self.game_map.tiles],
+                "tiles": [
+                    [t.value for t in row] for row in self.game_map.tiles
+                ],
             },
             "enemies": [
                 {"x": pos[0], "y": pos[1], "data": asdict(enemy)}

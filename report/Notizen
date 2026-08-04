@@ -1,0 +1,6 @@
+Ki agent schafft es nicht die Formatierung von Ruff einzuhalten.
+
+Da in Tests ist das nicht Sinnvoll.
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
