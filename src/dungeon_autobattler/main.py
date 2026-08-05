@@ -39,7 +39,7 @@ def main() -> None:
     generator = DungeonGenerator(map_width, map_height)
     game_map = generator.generate_random_walk(steps=300)
 
-    player_stats = Stats(hp=100, max_hp=100, ad=10, defense=5)
+    player_stats = Stats(hp=100, max_hp=100, ad=10, armor=5)
     player = Character(name="Held", base_stats=player_stats, items=[])
 
     start_pos = generator.find_free_tile(game_map)
@@ -59,8 +59,22 @@ def main() -> None:
     # Shop einrichten
     shop_pos = generator.find_free_tile(game_map)
     engine.game_map.set_tile(shop_pos.x, shop_pos.y, TileType.SHOP)
+
     engine.shop_items.append(
-        Item("Schwert", Rarity.RARE, Stats(hp=0, max_hp=0, ad=5, defense=0))
+        Item(
+            "Schwert",
+            Rarity.RARE,
+            Stats(
+                hp=0,
+                max_hp=0,
+                ad=5,
+                armor=0,
+                evasion_rating=0,
+                accuracy=0,
+                crit_chance=0.0,
+                crit_multiplier=0.0,
+            ),
+        )
     )
 
     # UI Font
@@ -160,14 +174,17 @@ def main() -> None:
             ad_s = small_font.render(
                 f"Angriff (AD): {stats.ad}", True, (255, 255, 255)
             )
-            def_s = small_font.render(
-                f"Verteidigung: {stats.defense}", True, (255, 255, 255)
+
+            armor_s = small_font.render(
+                f"Rüstung: {stats.armor} | Ausweichen: {stats.evasion_rating}",
+                True,
+                (255, 255, 255),
             )
 
             screen.blit(title, (220, 170))
             screen.blit(hp_s, (220, 210))
             screen.blit(ad_s, (220, 240))
-            screen.blit(def_s, (220, 270))
+            screen.blit(armor_s, (220, 270))
 
             inv_title = small_font.render("Items:", True, (0, 255, 255))
             screen.blit(inv_title, (220, 310))
