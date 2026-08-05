@@ -1,6 +1,7 @@
 import unittest
+
+from dungeon_autobattler.engine import Position, TileType
 from dungeon_autobattler.generator import DungeonGenerator
-from dungeon_autobattler.engine import TileType, Position
 
 
 class TestDungeonGenerator(unittest.TestCase):
