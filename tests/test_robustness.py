@@ -15,7 +15,7 @@ from dungeon_autobattler.models import (
 
 @pytest.fixture
 def engine() -> Engine:
-    stats = Stats(hp=100, max_hp=100, ad=10, defense=5)
+    stats = Stats(hp=100, max_hp=100, ad=10, armor=5)
     player = Character(name="Held", base_stats=stats, items=[])
     game_map = GameMap(width=10, height=10)
     return Engine(player, game_map, Position(1, 1))
@@ -26,38 +26,49 @@ def test_stats_validation() -> None:
     with pytest.raises(
         ValueError, match="Maximale HP dürfen nicht negativ sein"
     ):
-        Stats(hp=10, max_hp=-1, ad=1, defense=0)
+        Stats(hp=10, max_hp=-1, ad=1)
 
-    # Negative ad
-    with pytest.raises(ValueError, match="Angriffskraft"):
-        Stats(hp=10, max_hp=10, ad=-5, defense=0)
+    # Negative ad oder andere Stats
+    with pytest.raises(
+        ValueError, match="Basis-Werte dürfen nicht negativ sein"
+    ):
+        Stats(hp=10, max_hp=10, ad=-5)
+
+    with pytest.raises(
+        ValueError, match="Basis-Werte dürfen nicht negativ sein"
+    ):
+        Stats(hp=10, max_hp=10, ad=10, evasion_rating=-10)
 
     # HP capping
-    s = Stats(hp=200, max_hp=100, ad=10, defense=5)
+    s = Stats(hp=200, max_hp=100, ad=10)
     assert s.hp == 100
 
 
 def test_item_bonus_consistency() -> None:
-    base = Stats(hp=50, max_hp=50, ad=10, defense=5)
-    item_stats = Stats(hp=20, max_hp=20, ad=5, defense=5)
+    base = Stats(hp=50, max_hp=50, ad=10, armor=5)
+    item_stats = Stats(hp=20, max_hp=20, ad=5, armor=5)
     item = Item("Test Item", Rarity.COMMON, item_stats)
-    char = Character("Hero", base, [item])
+
+    char = Character("Hero", base_stats=base, items=[])
+    # Item ausrüsten, damit die Stats wirken!
+    char.equipment["chestplate"] = item
 
     curr = char.current_stats
     assert curr.hp == 70
     assert curr.max_hp == 70
     assert curr.ad == 15
-    assert curr.defense == 10
+    assert curr.armor == 10
 
-    # take_damage should use current defense (10)
-    # Damage 20 - 10 Def = 10 damage to base hp
+    # take_damage wendet nun direkt den berechneten Schaden an
     char.take_damage(20)
-    assert char.base_stats.hp == 40
-    assert char.current_stats.hp == 60
+    assert char.base_stats.hp == 30
+    assert char.current_stats.hp == 50
 
 
 def test_negative_damage() -> None:
-    char = Character("Hero", Stats(50, 50, 10, 5), [])
+    char = Character(
+        "Hero", base_stats=Stats(hp=50, max_hp=50, ad=10, armor=5), items=[]
+    )
     with pytest.raises(
         ValueError, match="Schadenswert darf nicht negativ sein"
     ):
@@ -92,7 +103,11 @@ def test_invalid_move(engine: Engine) -> None:
 def test_combat_preconditions(engine: Engine) -> None:
     from dungeon_autobattler.models import Character, DungeonError, Stats
 
-    enemy = Character("Dead Goblin", Stats(0, 30, 5, 2), [])
+    enemy = Character(
+        "Dead Goblin",
+        base_stats=Stats(hp=0, max_hp=30, ad=5, armor=2),
+        items=[],
+    )
     with pytest.raises(DungeonError, match="Gegner ist bereits tot"):
         engine.resolve_combat(enemy)
 

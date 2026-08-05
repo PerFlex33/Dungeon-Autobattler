@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -8,7 +9,9 @@ from dungeon_autobattler.models import Character, Stats
 
 @pytest.fixture
 def basic_stats() -> Stats:
-    return Stats(hp=100, max_hp=100, ad=10, defense=5)
+    return Stats(
+        hp=100, max_hp=100, ad=10, armor=5, evasion_rating=10, accuracy=100
+    )
 
 
 @pytest.fixture
@@ -27,13 +30,9 @@ def engine(player: Character, game_map: GameMap) -> Engine:
 
 
 def test_character_take_damage(player: Character) -> None:
-    # ad=10 vs defense=5 -> 5 damage
-    player.take_damage(10)
+    # take_damage zieht nach der neuen Logik einfach den übergebenen finalen Schaden ab
+    player.take_damage(5)
     assert player.base_stats.hp == 95
-
-    # ad=2 vs defense=5 -> min 1 damage
-    player.take_damage(2)
-    assert player.base_stats.hp == 94
 
     # massive damage
     player.take_damage(200)
@@ -48,7 +47,6 @@ def test_character_level_up(player: Character) -> None:
     assert player.level == 2
     assert player.base_stats.max_hp == 120
     assert player.base_stats.ad == 15
-    assert player.base_stats.defense == 7
 
 
 def test_engine_movement(engine: Engine) -> None:
@@ -66,14 +64,11 @@ def test_engine_movement(engine: Engine) -> None:
     assert engine.move_player(-1, 0) is False
 
 
-def test_resolve_combat(engine: Engine) -> None:
-    enemy_stats = Stats(hp=20, max_hp=20, ad=8, defense=0)
+@patch("random.random", return_value=0.5)
+def test_resolve_combat(mock_random: MagicMock, engine: Engine) -> None:
+    # return_value=0.5 zwingt random.random() auf 0.5 -> kein Ausweichen, keine Crits
+    enemy_stats = Stats(hp=20, max_hp=20, ad=8, armor=0)
     enemy = Character("Weak Goblin", enemy_stats, [])
-
-    # Player: 100 HP, 10 AD, 5 DEF
-    # Enemy: 20 HP, 8 AD, 0 DEF
-    # Round 1: Player hits Enemy for 10 -> Enemy has 10. Enemy hits Player for (8-5)=3 -> Player has 97.
-    # Round 2: Player hits Enemy for 10 -> Enemy has 0. Player wins.
 
     won = engine.resolve_combat(enemy)
     assert won is True
@@ -81,8 +76,9 @@ def test_resolve_combat(engine: Engine) -> None:
     assert not enemy.is_alive()
 
 
-def test_combat_trigger_on_move(engine: Engine) -> None:
-    enemy_stats = Stats(hp=10, max_hp=10, ad=5, defense=0)
+@patch("random.random", return_value=0.5)
+def test_combat_trigger_on_move(mock_random: MagicMock, engine: Engine) -> None:
+    enemy_stats = Stats(hp=10, max_hp=10, ad=5, armor=0)
     enemy = Character("Small Rat", enemy_stats, [], gold=15)
     engine.spawn_enemy(2, 1, enemy)
 

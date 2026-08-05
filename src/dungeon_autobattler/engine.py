@@ -3,6 +3,8 @@ Kernlogik des Spiels inklusive Map-Verwaltung und Bewegung.
 """
 
 import json
+import math
+import random
 from dataclasses import asdict, dataclass
 from enum import Enum
 
@@ -187,25 +189,51 @@ class Engine:
         Raises:
             DungeonError: Wenn der Kampf nicht gestartet werden kann.
         """
-        # Design-by-Contract: Preconditions
         if not self.player.is_alive():
             raise DungeonError("Ein toter Spieler kann nicht kämpfen.")
         if not enemy.is_alive():
             raise DungeonError("Gegner ist bereits tot.")
 
-        player_stats = self.player.current_stats
-        enemy_stats = enemy.current_stats
-
         while self.player.is_alive() and enemy.is_alive():
             # Spieler greift an
-            enemy.take_damage(player_stats.ad)
+            self._execute_attack(self.player, enemy)
             if not enemy.is_alive():
                 break
 
             # Gegner greift an
-            self.player.take_damage(enemy_stats.ad)
+            self._execute_attack(enemy, self.player)
 
         return self.player.is_alive()
+
+    def _execute_attack(self, attacker: Character, defender: Character) -> None:
+        att = attacker.current_stats
+        deff = defender.current_stats
+
+        evasion_term = math.pow(deff.evasion_rating / 4.0, 0.8)
+        hit_chance = (
+            att.accuracy / (att.accuracy + evasion_term)
+            if (att.accuracy + evasion_term) > 0
+            else 1.0
+        )
+
+        hit_chance = max(0.05, min(1.0, hit_chance))
+
+        if random.random() > hit_chance:
+            return
+
+        # 2. Kritischer Treffer berechnen
+        raw_damage = att.ad
+        if random.random() < att.crit_chance:
+            raw_damage = int(raw_damage * att.crit_multiplier)
+
+        damage_reduction = 0.0
+        if (deff.armor + 5.0 * raw_damage) > 0:
+            damage_reduction = deff.armor / (deff.armor + 5.0 * raw_damage)
+
+        damage_reduction = min(0.90, damage_reduction)
+
+        actual_damage = max(1, int(raw_damage * (1.0 - damage_reduction)))
+        defender.take_damage(actual_damage)
 
     def save_game(self, filepath: str) -> None:
         """Speichert den aktuellen Spielzustand als JSON."""
