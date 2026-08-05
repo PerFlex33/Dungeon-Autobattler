@@ -1,8 +1,8 @@
 """Hier befinden sich alle Datenmodelle"""
 
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
-from dataclasses import dataclass, field
 
 
 class Rarity(Enum):
