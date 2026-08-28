@@ -81,41 +81,15 @@ def main() -> None:
     font = pygame.font.SysFont("Arial", 24)
     small_font = pygame.font.SysFont("Arial", 18)
 
-    show_inventory = False
-    running = True
-    while running:
-        # 1. Events verarbeiten
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_w:
-                    engine.move_player(0, -1)
-                elif event.key == pygame.K_s:
-                    engine.move_player(0, 1)
-                elif event.key == pygame.K_a:
-                    engine.move_player(-1, 0)
-                elif event.key == pygame.K_d:
-                    engine.move_player(1, 0)
-                elif event.key == pygame.K_i:
-                    show_inventory = not show_inventory
-                elif event.key == pygame.K_F5:
-                    try:
-                        engine.save_game("savegame.json")
-                    except DungeonError as e:
-                        print(f"Fehler beim Speichern: {e}")
-                elif event.key == pygame.K_F9 or event.key == pygame.K_l:
-                    try:
-                        engine = Engine.load_game("savegame.json")
-                        game_map = engine.game_map
-                        show_inventory = False
-                    except DungeonError as e:
-                        print(f"Fehler beim Laden: {e}")
+    # Wir nutzen ein Dictionary (oder eine Klasse) für den State,
+    # damit wir den boolean in draw_scene via Closure modifizieren/lesen können.
+    state = {"show_inventory": False}
 
-        # 2. Zeichnen
+    def draw_scene(current_enemy: Character | None = None) -> None:
+        """Zeichnet den kompletten aktuellen Frame inklusive Menüs und Combat."""
         screen.fill((30, 30, 30))  # Dunkler Hintergrund
 
-        for y, row in enumerate(game_map.tiles):
+        for y, row in enumerate(engine.game_map.tiles):
             for x, tile in enumerate(row):
                 rect = pygame.Rect(
                     x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE
@@ -157,53 +131,157 @@ def main() -> None:
         screen.blit(lvl_text, (10, 70))
 
         # Inventar/Stats Overlay
-        if show_inventory:
-            overlay = pygame.Surface((400, 300))
+        # Inventar/Stats Overlay
+        if state["show_inventory"]:
+            # Fenster etwas größer machen (450x350) und zentrieren
+            overlay = pygame.Surface((450, 350))
             overlay.set_alpha(230)
             overlay.fill((50, 50, 50))
-            screen.blit(overlay, (200, 150))
-            pygame.draw.rect(screen, (200, 200, 200), (200, 150, 400, 300), 2)
+            screen.blit(overlay, (175, 125))
+            pygame.draw.rect(screen, (200, 200, 200), (175, 125, 450, 350), 2)
 
             stats = engine.player.current_stats
+
+            # Texte vorbereiten
             title = font.render(
                 "Charakter Stats & Inventar", True, (255, 255, 255)
             )
-            hp_s = small_font.render(
-                f"HP: {stats.hp}/{stats.max_hp}", True, (255, 255, 255)
-            )
-            ad_s = small_font.render(
-                f"Angriff (AD): {stats.ad}", True, (255, 255, 255)
-            )
 
-            armor_s = small_font.render(
-                f"Rüstung: {stats.armor} | Ausweichen: {stats.evasion_rating}",
+            hp_s = small_font.render(
+                f"HP: {stats.hp}/{stats.max_hp}", True, (50, 255, 50)
+            )
+            offense_s = small_font.render(
+                f"Angriff (AD): {stats.ad}  |  Genauigkeit: {stats.accuracy}",
                 True,
                 (255, 255, 255),
             )
+            crit_s = small_font.render(
+                f"Krit-Chance: {int(stats.crit_chance * 100)}%  |  Krit-Schaden: {int(stats.crit_multiplier * 100)}%",
+                True,
+                (255, 200, 50),
+            )
+            defense_s = small_font.render(
+                f"Rüstung: {stats.armor}  |  Ausweichen: {stats.evasion_rating}",
+                True,
+                (200, 200, 255),
+            )
 
-            screen.blit(title, (220, 170))
-            screen.blit(hp_s, (220, 210))
-            screen.blit(ad_s, (220, 240))
-            screen.blit(armor_s, (220, 270))
+            # Texte auf den Bildschirm zeichnen
+            screen.blit(title, (195, 140))
+            screen.blit(hp_s, (195, 180))
+            screen.blit(offense_s, (195, 210))
+            screen.blit(crit_s, (195, 240))
+            screen.blit(defense_s, (195, 270))
 
             inv_title = small_font.render("Items:", True, (0, 255, 255))
-            screen.blit(inv_title, (220, 310))
+            screen.blit(inv_title, (195, 310))
 
+            # Items auflisten
             for i, item in enumerate(engine.player.items):
                 item_text = small_font.render(
                     f"- {item.name} ({item.rarity.value})",
                     True,
                     (200, 200, 200),
                 )
-                screen.blit(item_text, (220, 340 + i * 25))
+                screen.blit(item_text, (195, 340 + i * 25))
 
             if not engine.player.items:
                 none_text = small_font.render(
                     "Keine Items", True, (150, 150, 150)
                 )
-                screen.blit(none_text, (220, 340))
+                screen.blit(none_text, (195, 340))
+
+        # Kampfanzeige Overlay
+        if current_enemy:
+            overlay = pygame.Surface((340, 120))
+            overlay.set_alpha(230)
+            overlay.fill((40, 10, 10))
+            screen.blit(overlay, (SCREEN_WIDTH // 2 - 170, 50))
+            pygame.draw.rect(
+                screen,
+                (200, 50, 50),
+                (SCREEN_WIDTH // 2 - 170, 50, 340, 120),
+                3,
+            )
+
+            vs_text = font.render(
+                f"Kampf! vs {current_enemy.name}", True, (255, 255, 255)
+            )
+            p_text = font.render(
+                f"Held HP: {engine.player.current_stats.hp}/{engine.player.current_stats.max_hp}",
+                True,
+                (50, 255, 50),
+            )
+            e_text = font.render(
+                f"Gegner HP: {current_enemy.current_stats.hp}/{current_enemy.current_stats.max_hp}",
+                True,
+                (255, 50, 50),
+            )
+
+            screen.blit(vs_text, (SCREEN_WIDTH // 2 - 150, 60))
+            screen.blit(p_text, (SCREEN_WIDTH // 2 - 150, 95))
+            screen.blit(e_text, (SCREEN_WIDTH // 2 - 150, 130))
+
+        # Combat Log Overlay
+        log_surface = pygame.Surface((380, 160))
+        log_surface.set_alpha(200)
+        log_surface.fill((20, 20, 20))
+        screen.blit(log_surface, (10, SCREEN_HEIGHT - 170))
+        pygame.draw.rect(
+            screen, (100, 100, 100), (10, SCREEN_HEIGHT - 170, 380, 160), 2
+        )
+
+        log_title = small_font.render("Kampf-Log:", True, (255, 200, 0))
+        screen.blit(log_title, (20, SCREEN_HEIGHT - 160))
+
+        for i, log_entry in enumerate(engine.combat_log[-6:]):
+            text_color = (
+                (255, 100, 100)
+                if "Held trifft" in log_entry
+                else (200, 200, 200)
+            )
+            log_text = small_font.render(log_entry, True, text_color)
+            screen.blit(log_text, (20, SCREEN_HEIGHT - 130 + i * 20))
 
         pygame.display.flip()
+
+    def combat_callback(enemy: Character) -> None:
+        """Wird von der Engine nach jedem Schlag aufgerufen."""
+        draw_scene(current_enemy=enemy)
+        pygame.event.pump()
+        pygame.time.delay(800)
+
+    running = True
+    while running:
+        # 1. Events verarbeiten
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_w:
+                    engine.move_player(0, -1, ui_callback=combat_callback)
+                elif event.key == pygame.K_s:
+                    engine.move_player(0, 1, ui_callback=combat_callback)
+                elif event.key == pygame.K_a:
+                    engine.move_player(-1, 0, ui_callback=combat_callback)
+                elif event.key == pygame.K_d:
+                    engine.move_player(1, 0, ui_callback=combat_callback)
+                elif event.key == pygame.K_i:
+                    state["show_inventory"] = not state["show_inventory"]
+                elif event.key == pygame.K_F5:
+                    try:
+                        engine.save_game("savegame.json")
+                    except DungeonError as e:
+                        print(f"Fehler beim Speichern: {e}")
+                elif event.key == pygame.K_F9 or event.key == pygame.K_l:
+                    try:
+                        engine = Engine.load_game("savegame.json")
+                        state["show_inventory"] = False
+                    except DungeonError as e:
+                        print(f"Fehler beim Laden: {e}")
+
+        # 2. Zeichnen
+        draw_scene()
         clock.tick(FPS)
 
     pygame.quit()

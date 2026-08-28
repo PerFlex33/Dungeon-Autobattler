@@ -7,6 +7,7 @@ import math
 import random
 from dataclasses import asdict, dataclass
 from enum import Enum
+from typing import Callable, Optional
 
 from dungeon_autobattler.models import (
     Character,
@@ -93,42 +94,22 @@ class Engine:
         self.difficulty = difficulty
         self.enemies: dict[tuple[int, int], Character] = {}
         self.shop_items: list[Item] = []
+        self.combat_log: list[str] = []
 
     def spawn_enemy(self, x: int, y: int, enemy: Character) -> None:
         """Platziert einen Gegner auf der Map."""
         self.game_map.set_tile(x, y, TileType.ENEMY)
         self.enemies[(x, y)] = enemy
 
-    def move_player(self, dx: int, dy: int) -> bool:
+    def move_player(
+        self,
+        dx: int,
+        dy: int,
+        ui_callback: Optional[Callable[[Character], None]] = None,
+    ) -> bool:
         """
         Versucht den Spieler zu bewegen.
-
-        Args:
-            dx: Änderung in x-Richtung
-            dy: Änderung in y-Richtung
-
-        Returns:
-            True wenn Bewegung erfolgreich, sonst False.
-
-        Raises:
-            InvalidMoveError: Wenn dx oder dy ungültig sind.
-
-        Examples:
-            >>> from dungeon_autobattler.models import Character, Stats
-            >>> stats = Stats(10, 10, 2, 1)
-            >>> player = Character("Held", stats, [])
-            >>> m = GameMap(5, 5)
-            >>> eng = Engine(player, m, Position(0, 0))
-            >>> eng.move_player(1, 0)
-            True
-            >>> eng.player_pos
-            Position(x=1, y=0)
-            >>> eng.move_player(-1, 0)
-            True
-            >>> eng.move_player(-1, 0) # Außerhalb der Map
-            False
         """
-        # Design-by-Contract: Preconditions
         if abs(dx) > 1 or abs(dy) > 1:
             raise InvalidMoveError("Spieler kann nur maximal 1 Feld ziehen.")
         if dx == 0 and dy == 0:
@@ -140,11 +121,11 @@ class Engine:
             if tile == TileType.ENEMY:
                 enemy = self.enemies.get((new_pos.x, new_pos.y))
                 if enemy:
-                    won = self.resolve_combat(enemy)
+                    won = self.resolve_combat(enemy, ui_callback)
                     if won:
                         # Belohnungen
                         self.player.gold += enemy.gold
-                        self.player.gain_xp(25)  # Fester XP Wert für Demo
+                        self.player.gain_xp(25)
 
                         # Gegner besiegt, Feld wird leer
                         self.game_map.set_tile(
@@ -155,15 +136,13 @@ class Engine:
                         return True
                     return False  # Spieler hat verloren/ist tot
             elif tile == TileType.SHOP:
-                # Automatischer Kauf des ersten Items im Shop (einfache Logik)
                 if self.shop_items:
                     item = self.shop_items[0]
-                    cost = 20  # Pauschalpreis für Demo
+                    cost = 20
                     if self.player.gold >= cost:
                         self.player.gold -= cost
                         self.player.items.append(item)
                         self.shop_items.pop(0)
-                        # Shop-Tile bleibt betretbar
 
                 self.player_pos = new_pos
                 return True
@@ -176,32 +155,36 @@ class Engine:
             return True
         return False
 
-    def resolve_combat(self, enemy: Character) -> bool:
+    def resolve_combat(
+        self,
+        enemy: Character,
+        ui_callback: Optional[Callable[[Character], None]] = None,
+    ) -> bool:
         """
-        Führt einen automatisierten Kampf bis zum Tod durch.
-
-        Args:
-            enemy: Der Gegner-Charakter
-
-        Returns:
-            True wenn der Spieler gewinnt, False wenn er stirbt.
-
-        Raises:
-            DungeonError: Wenn der Kampf nicht gestartet werden kann.
+        Führt einen automatisierten Kampf Schritt für Schritt durch.
         """
         if not self.player.is_alive():
             raise DungeonError("Ein toter Spieler kann nicht kämpfen.")
         if not enemy.is_alive():
             raise DungeonError("Gegner ist bereits tot.")
 
+        self.combat_log.append(f"--- Kampf gegen {enemy.name} ---")
+        if ui_callback:
+            ui_callback(enemy)
+
         while self.player.is_alive() and enemy.is_alive():
             # Spieler greift an
             self._execute_attack(self.player, enemy)
+            if ui_callback:
+                ui_callback(enemy)
+
             if not enemy.is_alive():
                 break
 
             # Gegner greift an
             self._execute_attack(enemy, self.player)
+            if ui_callback:
+                ui_callback(enemy)
 
         return self.player.is_alive()
 
@@ -219,12 +202,15 @@ class Engine:
         hit_chance = max(0.05, min(1.0, hit_chance))
 
         if random.random() > hit_chance:
+            self.combat_log.append(f"{attacker.name} verfehlt {defender.name}!")
             return
 
-        # 2. Kritischer Treffer berechnen
+        # Kritischer Treffer berechnen
         raw_damage = att.ad
+        is_crit = False
         if random.random() < att.crit_chance:
             raw_damage = int(raw_damage * att.crit_multiplier)
+            is_crit = True
 
         damage_reduction = 0.0
         if (deff.armor + 5.0 * raw_damage) > 0:
@@ -234,6 +220,11 @@ class Engine:
 
         actual_damage = max(1, int(raw_damage * (1.0 - damage_reduction)))
         defender.take_damage(actual_damage)
+
+        crit_text = " (KRITISCH!)" if is_crit else ""
+        self.combat_log.append(
+            f"{attacker.name} trifft für {actual_damage} Schaden{crit_text}"
+        )
 
     def save_game(self, filepath: str) -> None:
         """Speichert den aktuellen Spielzustand als JSON."""
