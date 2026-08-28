@@ -13,6 +13,7 @@ from dungeon_autobattler.models import (
     Character,
     DungeonError,
     EnemyType,
+    EquipmentSlot,
     Item,
     Rarity,
     Stats,
@@ -56,24 +57,25 @@ def main() -> None:
             create_enemy(enemy_type, difficulty_multiplier=engine.difficulty),
         )
 
-    # Shop einrichten
+    # Shop einrichten und Test-Ausrüstung hinzufügen
     shop_pos = generator.find_free_tile(game_map)
     engine.game_map.set_tile(shop_pos.x, shop_pos.y, TileType.SHOP)
 
     engine.shop_items.append(
         Item(
-            "Schwert",
+            "Brustpanzer der Macht",
             Rarity.RARE,
             Stats(
-                hp=0,
-                max_hp=0,
-                ad=5,
-                armor=0,
+                hp=20,
+                max_hp=20,
+                ad=2,
+                armor=15,
                 evasion_rating=0,
                 accuracy=0,
                 crit_chance=0.0,
                 crit_multiplier=0.0,
             ),
+            slot=EquipmentSlot.CHESTPLATE,
         )
     )
 
@@ -81,13 +83,12 @@ def main() -> None:
     font = pygame.font.SysFont("Arial", 24)
     small_font = pygame.font.SysFont("Arial", 18)
 
-    # Wir nutzen ein Dictionary (oder eine Klasse) für den State,
-    # damit wir den boolean in draw_scene via Closure modifizieren/lesen können.
-    state = {"show_inventory": False}
+    # State speichert jetzt auch die Auswahl im Inventar
+    state = {"show_inventory": False, "inv_selection": 0}
 
     def draw_scene(current_enemy: Character | None = None) -> None:
         """Zeichnet den kompletten aktuellen Frame inklusive Menüs und Combat."""
-        screen.fill((30, 30, 30))  # Dunkler Hintergrund
+        screen.fill((30, 30, 30))
 
         for y, row in enumerate(engine.game_map.tiles):
             for x, tile in enumerate(row):
@@ -117,7 +118,7 @@ def main() -> None:
             f"Gold: {engine.player.gold}", True, (255, 215, 0)
         )
         hp_text = font.render(
-            f"HP: {engine.player.base_stats.hp}/{engine.player.base_stats.max_hp}",
+            f"HP: {engine.player.current_stats.hp}/{engine.player.current_stats.max_hp}",
             True,
             (255, 255, 255),
         )
@@ -131,9 +132,7 @@ def main() -> None:
         screen.blit(lvl_text, (10, 70))
 
         # Inventar/Stats Overlay
-        # Inventar/Stats Overlay
         if state["show_inventory"]:
-            # Fenster etwas größer machen (450x350) und zentrieren
             overlay = pygame.Surface((450, 350))
             overlay.set_alpha(230)
             overlay.fill((50, 50, 50))
@@ -142,11 +141,9 @@ def main() -> None:
 
             stats = engine.player.current_stats
 
-            # Texte vorbereiten
             title = font.render(
                 "Charakter Stats & Inventar", True, (255, 255, 255)
             )
-
             hp_s = small_font.render(
                 f"HP: {stats.hp}/{stats.max_hp}", True, (50, 255, 50)
             )
@@ -166,22 +163,34 @@ def main() -> None:
                 (200, 200, 255),
             )
 
-            # Texte auf den Bildschirm zeichnen
             screen.blit(title, (195, 140))
             screen.blit(hp_s, (195, 180))
             screen.blit(offense_s, (195, 210))
             screen.blit(crit_s, (195, 240))
             screen.blit(defense_s, (195, 270))
 
-            inv_title = small_font.render("Items:", True, (0, 255, 255))
+            inv_title = small_font.render(
+                "Items: (W/S: Navi | E: An-/Ablegen)", True, (0, 255, 255)
+            )
             screen.blit(inv_title, (195, 310))
 
-            # Items auflisten
             for i, item in enumerate(engine.player.items):
+                is_equipped = item in engine.player.equipment.values()
+
+                prefix = "-> " if i == state["inv_selection"] else "   "
+                suffix = " [ANGELEGT]" if is_equipped else ""
+
+                # Farben für Auswahl und Status
+                color = (200, 200, 200)
+                if i == state["inv_selection"]:
+                    color = (255, 255, 0)
+                elif is_equipped:
+                    color = (100, 255, 100)
+
                 item_text = small_font.render(
-                    f"- {item.name} ({item.rarity.value})",
+                    f"{prefix}{item.name} ({item.rarity.value}){suffix}",
                     True,
-                    (200, 200, 200),
+                    color,
                 )
                 screen.blit(item_text, (195, 340 + i * 25))
 
@@ -258,16 +267,10 @@ def main() -> None:
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_w:
-                    engine.move_player(0, -1, ui_callback=combat_callback)
-                elif event.key == pygame.K_s:
-                    engine.move_player(0, 1, ui_callback=combat_callback)
-                elif event.key == pygame.K_a:
-                    engine.move_player(-1, 0, ui_callback=combat_callback)
-                elif event.key == pygame.K_d:
-                    engine.move_player(1, 0, ui_callback=combat_callback)
-                elif event.key == pygame.K_i:
+                # Globale Hotkeys
+                if event.key == pygame.K_i:
                     state["show_inventory"] = not state["show_inventory"]
+                    state["inv_selection"] = 0
                 elif event.key == pygame.K_F5:
                     try:
                         engine.save_game("savegame.json")
@@ -279,6 +282,55 @@ def main() -> None:
                         state["show_inventory"] = False
                     except DungeonError as e:
                         print(f"Fehler beim Laden: {e}")
+
+                # Eingaben wenn das Inventar OFFEN ist
+                elif state["show_inventory"]:
+                    if event.key in (pygame.K_w, pygame.K_UP):
+                        state["inv_selection"] = max(
+                            0, state["inv_selection"] - 1
+                        )
+                    elif event.key in (pygame.K_s, pygame.K_DOWN):
+                        if engine.player.items:
+                            state["inv_selection"] = min(
+                                len(engine.player.items) - 1,
+                                state["inv_selection"] + 1,
+                            )
+                    elif event.key in (pygame.K_e, pygame.K_RETURN):
+                        if engine.player.items:
+                            selected_item = engine.player.items[
+                                state["inv_selection"]
+                            ]
+                            if selected_item.slot:
+                                slot_key = selected_item.slot.value
+                                # Fallback für Ringe
+                                if slot_key == "ring":
+                                    slot_key = "ring_1"
+
+                                # Item toggeln (An-/Ablegen)
+                                if (
+                                    engine.player.equipment.get(slot_key)
+                                    == selected_item
+                                ):
+                                    engine.player.equipment[slot_key] = None
+                                else:
+                                    engine.player.equipment[slot_key] = (
+                                        selected_item
+                                    )
+
+                                # Wenn Item angelegt wird, prüfen, ob es die max_hp erhöht
+                                # und sicherstellen, dass die HP nicht über max_hp steigen
+                                engine.player.current_stats  # Trigger Stats-Neuberechnung
+
+                # Eingaben wenn das Inventar GESCHLOSSEN ist (Bewegung)
+                else:
+                    if event.key == pygame.K_w:
+                        engine.move_player(0, -1, ui_callback=combat_callback)
+                    elif event.key == pygame.K_s:
+                        engine.move_player(0, 1, ui_callback=combat_callback)
+                    elif event.key == pygame.K_a:
+                        engine.move_player(-1, 0, ui_callback=combat_callback)
+                    elif event.key == pygame.K_d:
+                        engine.move_player(1, 0, ui_callback=combat_callback)
 
         # 2. Zeichnen
         draw_scene()
