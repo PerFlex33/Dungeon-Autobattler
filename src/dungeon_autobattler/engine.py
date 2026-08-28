@@ -1,5 +1,5 @@
 """
-Kernlogik des Spiels inklusive Map-Verwaltung und Bewegung.
+Kernlogik des Spiels inklusive Map-Verwaltung, Kampfabwicklung und Spielstandsverwaltung.
 """
 
 import json
@@ -12,11 +12,13 @@ from typing import Callable, Optional
 from dungeon_autobattler.models import (
     Character,
     DungeonError,
+    EquipmentSlot,
     InvalidMoveError,
     Item,
     LoadGameError,
     Rarity,
     SaveGameError,
+    Stats,
 )
 
 
@@ -33,23 +35,24 @@ class TileType(Enum):
 
 @dataclass
 class Position:
-    """Repräsentiert eine Koordinate auf der Map."""
+    """Repräsentiert eine zweidimensionale Koordinate auf der Map."""
 
     x: int
     y: int
 
     def __add__(self, other: "Position") -> "Position":
+        """Erlaubt die einfache Addition zweier Positionen."""
         return Position(self.x + other.x, self.y + other.y)
 
 
 class GameMap:
     """
-    Verwaltet die 2D-Karte des Dungeons.
+    Verwaltet das Grid und die Kollisionen des Dungeons.
 
     Attributes:
-        width: Breite der Map
-        height: Höhe der Map
-        tiles: 2D-Liste der TileTypes
+        width: Breite der Map in Kacheln.
+        height: Höhe der Map in Kacheln.
+        tiles: 2D-Liste der TileTypes, welche die Level-Struktur bilden.
     """
 
     def __init__(self, width: int, height: int) -> None:
@@ -60,25 +63,39 @@ class GameMap:
         ]
 
     def is_walkable(self, pos: Position) -> bool:
-        """Prüft, ob eine Position betreten werden kann."""
+        """
+        Prüft, ob eine Position innerhalb der Karte liegt und kein Hindernis ist.
+
+        Args:
+            pos: Die zu prüfende Position.
+
+        Returns:
+            True, wenn das Feld betretbar ist.
+        """
         if not (0 <= pos.x < self.width and 0 <= pos.y < self.height):
             return False
         return self.tiles[pos.y][pos.x] != TileType.WALL
 
     def set_tile(self, x: int, y: int, tile_type: TileType) -> None:
-        """Setzt einen TileType an einer bestimmten Position."""
+        """
+        Setzt einen spezifischen Kachel-Typ an einer Position.
+        """
         if 0 <= x < self.width and 0 <= y < self.height:
             self.tiles[y][x] = tile_type
 
 
 class Engine:
     """
-    Hauptspiel-Engine, die Spieler und Map verbindet.
+    Hauptspiel-Engine, die den Spielzustand, die Entitäten und deren Interaktionen verbindet.
 
     Attributes:
-        player: Das Character-Objekt des Spielers
-        player_pos: Aktuelle Position auf der Map
-        game_map: Die aktuelle Map
+        player: Das Character-Objekt des Spielers.
+        game_map: Die Instanz der aktuellen Dungeon-Karte.
+        player_pos: Aktuelle Position des Spielers auf der Map.
+        difficulty: Allgemeiner Multiplikator für die Gegnerskalierung.
+        enemies: Dictionary mit Positionen als Key und Gegner-Objekten als Value.
+        shop_items: Liste der aktuell im Shop verfügbaren Items.
+        combat_log: Historie der letzten Kampfereignisse als Strings.
     """
 
     def __init__(
@@ -97,7 +114,7 @@ class Engine:
         self.combat_log: list[str] = []
 
     def spawn_enemy(self, x: int, y: int, enemy: Character) -> None:
-        """Platziert einen Gegner auf der Map."""
+        """Platziert einen Gegner auf der Map an der angegebenen Koordinate."""
         self.game_map.set_tile(x, y, TileType.ENEMY)
         self.enemies[(x, y)] = enemy
 
@@ -108,7 +125,18 @@ class Engine:
         ui_callback: Optional[Callable[[Character], None]] = None,
     ) -> bool:
         """
-        Versucht den Spieler zu bewegen.
+        Verarbeitet die Fortbewegung des Spielers und behandelt Kollisionen mit Entitäten (Shop, Gegner, Exit).
+
+        Args:
+            dx: Bewegung auf der X-Achse (-1, 0, 1).
+            dy: Bewegung auf der Y-Achse (-1, 0, 1).
+            ui_callback: Optionale Funktion, die bei Kampf-Events zum Zeichnen der UI aufgerufen wird.
+
+        Returns:
+            True, wenn die Bewegung oder Interaktion erfolgreich war. False bei blockierten Wegen.
+
+        Raises:
+            InvalidMoveError: Wenn dx oder dy größer als 1 (oder kleiner als -1) sind.
         """
         if abs(dx) > 1 or abs(dy) > 1:
             raise InvalidMoveError("Spieler kann nur maximal 1 Feld ziehen.")
@@ -118,23 +146,23 @@ class Engine:
         new_pos = self.player_pos + Position(dx, dy)
         if self.game_map.is_walkable(new_pos):
             tile = self.game_map.tiles[new_pos.y][new_pos.x]
+
             if tile == TileType.ENEMY:
                 enemy = self.enemies.get((new_pos.x, new_pos.y))
                 if enemy:
                     won = self.resolve_combat(enemy, ui_callback)
                     if won:
-                        # Belohnungen
                         self.player.gold += enemy.gold
                         self.player.gain_xp(25)
 
-                        # Gegner besiegt, Feld wird leer
                         self.game_map.set_tile(
                             new_pos.x, new_pos.y, TileType.EMPTY
                         )
                         del self.enemies[(new_pos.x, new_pos.y)]
                         self.player_pos = new_pos
                         return True
-                    return False  # Spieler hat verloren/ist tot
+                    return False
+
             elif tile == TileType.SHOP:
                 if self.shop_items:
                     item = self.shop_items[0]
@@ -146,6 +174,7 @@ class Engine:
 
                 self.player_pos = new_pos
                 return True
+
             elif tile == TileType.EXIT:
                 print("Sieg! Du hast den Ausgang erreicht.")
                 self.player_pos = new_pos
@@ -161,7 +190,17 @@ class Engine:
         ui_callback: Optional[Callable[[Character], None]] = None,
     ) -> bool:
         """
-        Führt einen automatisierten Kampf Schritt für Schritt durch.
+        Führt einen automatisierten Kampf Schritt für Schritt durch, bis eine Partei stirbt.
+
+        Args:
+            enemy: Der verteidigende Gegner.
+            ui_callback: Hook zur Aktualisierung des Game-Renderings nach jedem Schlag.
+
+        Returns:
+            True, wenn der Spieler den Kampf überlebt hat, andernfalls False.
+
+        Raises:
+            DungeonError: Wenn Spieler oder Gegner bereits tot sind, bevor der Kampf startet.
         """
         if not self.player.is_alive():
             raise DungeonError("Ein toter Spieler kann nicht kämpfen.")
@@ -173,7 +212,6 @@ class Engine:
             ui_callback(enemy)
 
         while self.player.is_alive() and enemy.is_alive():
-            # Spieler greift an
             self._execute_attack(self.player, enemy)
             if ui_callback:
                 ui_callback(enemy)
@@ -181,7 +219,6 @@ class Engine:
             if not enemy.is_alive():
                 break
 
-            # Gegner greift an
             self._execute_attack(enemy, self.player)
             if ui_callback:
                 ui_callback(enemy)
@@ -189,6 +226,10 @@ class Engine:
         return self.player.is_alive()
 
     def _execute_attack(self, attacker: Character, defender: Character) -> None:
+        """
+        Berechnet intern den Schaden eines Angriffs inklusive Ausweichen, kritischen Treffern und Rüstungsreduktion.
+        Protokolliert das Resultat in der `combat_log`-Liste.
+        """
         att = attacker.current_stats
         deff = defender.current_stats
 
@@ -205,7 +246,6 @@ class Engine:
             self.combat_log.append(f"{attacker.name} verfehlt {defender.name}!")
             return
 
-        # Kritischer Treffer berechnen
         raw_damage = att.ad
         is_crit = False
         if random.random() < att.crit_chance:
@@ -227,7 +267,15 @@ class Engine:
         )
 
     def save_game(self, filepath: str) -> None:
-        """Speichert den aktuellen Spielzustand als JSON."""
+        """
+        Serialisiert den aktuellen Spielzustand und schreibt ihn in eine JSON-Datei.
+
+        Args:
+            filepath: Der Pfad zur Zieldatei.
+
+        Raises:
+            SaveGameError: Bei Problemen mit den Dateiberechtigungen oder Speichermedien.
+        """
         data = {
             "player": asdict(self.player),
             "player_pos": asdict(self.player_pos),
@@ -252,47 +300,72 @@ class Engine:
 
     @classmethod
     def load_game(cls, filepath: str) -> "Engine":
-        """Lädt einen Spielzustand aus einer JSON-Datei."""
-        from dungeon_autobattler.models import Item, Stats
+        """
+        Lädt einen Spielzustand aus einer JSON-Datei und rekonstruiert alle Objekte.
 
+        Args:
+            filepath: Pfad zur JSON-Speicherdatei.
+
+        Returns:
+            Eine vollständig wiederhergestellte Instanz der Engine.
+
+        Raises:
+            LoadGameError: Wenn die Datei korrupt ist, Variablen fehlen oder das JSON fehlerhaft ist.
+        """
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            # Spieler rekonstruieren
             p_data = data["player"]
             p_stats = Stats(**p_data["base_stats"])
+
+            # Rekonstruktion des Rucksack-Inventars
             player = Character(
                 name=p_data["name"],
                 base_stats=p_stats,
                 items=[
                     Item(
-                        i["name"],
-                        Rarity(i["rarity"]),
-                        Stats(**i["bonus_stats"]),
+                        name=i["name"],
+                        rarity=Rarity(i["rarity"]),
+                        bonus_stats=Stats(**i["bonus_stats"]),
+                        slot=EquipmentSlot(i["slot"])
+                        if i.get("slot")
+                        else None,
+                        is_consumable=i.get("is_consumable", False),
+                        heal_amount=i.get("heal_amount", 0),
                     )
-                    for i in p_data["items"]
-                ]
-                if "items" in p_data
-                else [],
+                    for i in p_data.get("items", [])
+                ],
                 gold=p_data.get("gold", 0),
                 xp=p_data.get("xp", 0),
                 level=p_data.get("level", 1),
             )
 
-            # Map rekonstruieren
+            # Rekonstruktion der angelegten Ausrüstung
+            if "equipment" in p_data:
+                for slot_key, i_data in p_data["equipment"].items():
+                    if i_data:
+                        player.equipment[slot_key] = Item(
+                            name=i_data["name"],
+                            rarity=Rarity(i_data["rarity"]),
+                            bonus_stats=Stats(**i_data["bonus_stats"]),
+                            slot=EquipmentSlot(i_data["slot"])
+                            if i_data.get("slot")
+                            else None,
+                            is_consumable=i_data.get("is_consumable", False),
+                            heal_amount=i_data.get("heal_amount", 0),
+                        )
+
             m_data = data["map"]
             g_map = GameMap(m_data["width"], m_data["height"])
             g_map.tiles = [
                 [TileType(t) for t in row] for row in m_data["tiles"]
             ]
 
-            # Engine erstellen
             pos = Position(**data["player_pos"])
             difficulty = data.get("difficulty", 1.0)
             engine = cls(player, g_map, pos, difficulty)
 
-            # Gegner rekonstruieren
             from dungeon_autobattler.models import Enemy, EnemyType
 
             for e_entry in data["enemies"]:

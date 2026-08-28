@@ -1,4 +1,6 @@
-"""Hier befinden sich alle Datenmodelle"""
+"""
+Hier befinden sich alle Datenmodelle für Charaktere, Items und die Welt.
+"""
 
 from dataclasses import dataclass, field
 from enum import Enum
@@ -6,11 +8,7 @@ from typing import Optional
 
 
 class Rarity(Enum):
-    """
-    Seltenheitsstufe eines Items.
-
-    TODO: Dazugehörige drop chancen später
-    """
+    """Seltenheitsstufe eines Items."""
 
     COMMON = "common"
     UNCOMMON = "uncommon"
@@ -20,9 +18,7 @@ class Rarity(Enum):
 
 
 class EnemyType(Enum):
-    """
-    Verschiedene Gegnertypen im Spiel.
-    """
+    """Verschiedene Gegnertypen im Spiel mit individuellen Skalierungen."""
 
     GOBLIN = "Goblin"
     SKELETON = "Skelett"
@@ -33,19 +29,19 @@ class EnemyType(Enum):
 
 
 class DungeonError(Exception):
-    """Basis-Exception für das Spiel."""
+    """Basis-Exception für alle spielspezifischen Fehler."""
 
 
 class LoadGameError(DungeonError):
-    """Wird geworfen, wenn beim Laden ein Fehler auftritt."""
+    """Wird geworfen, wenn beim Laden der Savegame-Datei ein Fehler auftritt."""
 
 
 class SaveGameError(DungeonError):
-    """Wird geworfen, wenn beim Speichern ein Fehler auftritt."""
+    """Wird geworfen, wenn beim Speichern des Spielstands ein Fehler auftritt."""
 
 
 class InvalidMoveError(DungeonError):
-    """Wird geworfen, wenn eine Bewegung ungültig ist."""
+    """Wird geworfen, wenn eine ungültige Bewegung auf der Map versucht wird."""
 
 
 @dataclass
@@ -54,19 +50,14 @@ class Stats:
     Stats von Charakteren, NPCs und Gegnern.
 
     Attributes:
-        hp: Aktuelle HP
-        max_hp: Maximale HP
-        ad: Angriffskraft
-        armor: Rüstung
-        evasion_rating: Ausweichwert
+        hp: Aktuelle Lebenspunkte
+        max_hp: Maximale Lebenspunkte
+        ad: Angriffskraft (Attack Damage)
+        armor: Rüstungswert zur Schadensreduktion
+        evasion_rating: Ausweichwert, der die gegnerische Genauigkeit kontert
         accuracy: Treffergenauigkeit
-        crit_chance: Kritische Trefferchance
-        crit_multiplier: Kritischer Multiplikator
-
-    Examples:
-        >>> stats = Stats(hp=100, max_hp=100, ad=10, armor=5)
-        >>> stats.hp
-        100
+        crit_chance: Wahrscheinlichkeit für einen kritischen Treffer (0.0 bis 1.0)
+        crit_multiplier: Multiplikator für den Schaden bei kritischen Treffern
     """
 
     hp: int
@@ -74,11 +65,12 @@ class Stats:
     ad: int
     armor: int = 0
     evasion_rating: int = 0
-    accuracy: int = 100  # Gegenspieler zu Evasion
-    crit_chance: float = 0.05  # 5% Basis-Crit
-    crit_multiplier: float = 1.5  # 150% Crit-Schaden
+    accuracy: int = 100
+    crit_chance: float = 0.05
+    crit_multiplier: float = 1.5
 
     def __post_init__(self) -> None:
+        """Validiert die Stats nach der Initialisierung auf korrekte Wertebereiche."""
         if self.max_hp < 0:
             raise ValueError("Maximale HP dürfen nicht negativ sein.")
         self.hp = max(self.hp, 0)
@@ -93,6 +85,8 @@ class Stats:
 
 
 class EquipmentSlot(Enum):
+    """Verfügbare Ausrüstungs-Slots für Items."""
+
     HELMET = "helmet"
     CHESTPLATE = "chestplate"
     PANTS = "pants"
@@ -104,22 +98,27 @@ class EquipmentSlot(Enum):
 @dataclass
 class Item:
     """
-    Ein Item, das Stats verbessern kann.
+    Ein Item, das dem Spieler Stats gewährt oder konsumiert werden kann.
 
     Attributes:
-        name: Name des Items
-        rarity: Seltenheit
-        bonus_stats: Die Stats, die das Item verleiht
+        name: Name des Items.
+        rarity: Seltenheitsstufe.
+        bonus_stats: Die Stats, die beim Tragen addiert werden.
+        slot: Der Ausrüstungsslot (falls es anlegbar ist).
+        is_consumable: True, wenn das Item verbraucht werden kann (z.B. Tränke).
+        heal_amount: Menge an HP, die beim Konsumieren geheilt wird.
     """
 
     name: str
     rarity: Rarity
     bonus_stats: Stats
     slot: EquipmentSlot | None = None
+    is_consumable: bool = False
+    heal_amount: int = 0
 
 
 def _default_equipment() -> dict[str, Optional["Item"]]:
-    """Erzeugt ein leeres Equipment-Dictionary für neue Charaktere."""
+    """Erzeugt ein leeres Equipment-Dictionary mit allen verfügbaren Slots für neue Charaktere."""
     return {
         "helmet": None,
         "chestplate": None,
@@ -139,9 +138,13 @@ class Character:
     Basisklasse für Spieler und NPCs.
 
     Attributes:
-        name: Name der Entität
-        base_stats: Basis-Stats ohne Items
-        items: Liste der getragenen Items
+        name: Name der Entität.
+        base_stats: Basis-Stats ohne angelegte Items.
+        items: Rucksack-Inventar (Liste aller getragenen Items).
+        equipment: Aktuell angelegte Ausrüstungsgegenstände.
+        gold: Gesammeltes Gold.
+        xp: Gesammelte Erfahrungspunkte.
+        level: Aktuelles Level.
     """
 
     name: str
@@ -156,6 +159,12 @@ class Character:
 
     @property
     def current_stats(self) -> Stats:
+        """
+        Berechnet die aktuellen Stats dynamisch basierend auf base_stats und angelegter Ausrüstung.
+
+        Returns:
+            Ein neues Stats-Objekt mit den aufsummierten Werten.
+        """
         total_hp = self.base_stats.hp
         total_max_hp = self.base_stats.max_hp
         total_ad = self.base_stats.ad
@@ -193,29 +202,40 @@ class Character:
         )
 
     def is_alive(self) -> bool:
-        """Prüft, ob der Charakter noch HP hat."""
+        """
+        Prüft, ob der Charakter noch am Leben ist.
+
+        Returns:
+            True, wenn die HP größer als 0 sind.
+        """
         return self.current_stats.hp > 0
 
     def take_damage(self, amount: int) -> None:
-        """Reduziert die HP um den berechneten finalen Schaden."""
+        """
+        Reduziert die HP um den übergebenen, final berechneten Schaden.
+
+        Args:
+            amount: Der abzuziehende Schaden (muss >= 0 sein).
+        """
         if amount < 0:
             raise ValueError("Schadenswert darf nicht negativ sein.")
         self.base_stats.hp = max(0, self.base_stats.hp - amount)
 
     def gain_xp(self, amount: int) -> bool:
         """
-        Erhöht XP und prüft auf Level-Up.
+        Erhöht die XP des Charakters und führt bei Erreichen der Grenze ein Level-Up durch.
+
+        Args:
+            amount: Die Anzahl der zu gewährenden Erfahrungspunkte.
 
         Returns:
-            True wenn ein Level-Up stattgefunden hat.
+            True, wenn ein Level-Up stattgefunden hat, sonst False.
         """
         self.xp += amount
         xp_needed = self.level * 50
         if self.xp >= xp_needed:
             self.xp -= xp_needed
             self.level += 1
-            # Stats verbessern bei Level Up
-            # TODO: Level-Up-Effekte
             self.base_stats.max_hp += 20
             self.base_stats.hp = self.base_stats.max_hp
             self.base_stats.ad += 5
@@ -226,11 +246,11 @@ class Character:
 @dataclass
 class Enemy(Character):
     """
-    Repräsentiert einen Gegner im Spiel.
+    Repräsentiert einen Feind auf der Karte.
 
     Attributes:
-        enemy_type: Der Typ des Gegners
-        loot_value: Bestimmt die Qualität der Drops
+        enemy_type: Die Art des Feindes (z.B. Goblin, Drache).
+        loot_value: Multiplikator für Gold- und Item-Drops.
     """
 
     enemy_type: EnemyType = EnemyType.GOBLIN
@@ -241,10 +261,15 @@ def create_enemy(
     enemy_type: EnemyType, difficulty_multiplier: float = 1.0
 ) -> Enemy:
     """
-    Erstellt einen Gegner basierend auf Typ und Schwierigkeit.
-    Angepasst für Path of Exile (PoE) Stat-Mechaniken.
+    Erstellt einen parametrisierten Gegner basierend auf seinem Typ und dem aktuellen Schwierigkeitsgrad.
+
+    Args:
+        enemy_type: Die Art des Gegners aus der EnemyType-Enum.
+        difficulty_multiplier: Skalar, mit dem alle Basis-Stats multipliziert werden.
+
+    Returns:
+        Ein vollständig initialisiertes Enemy-Objekt.
     """
-    # Basis-Werte für die verschiedenen Typen
     base_data = {
         EnemyType.GOBLIN: {
             "hp": 30,
@@ -322,7 +347,6 @@ def create_enemy(
 
     data = base_data[enemy_type]
 
-    # Basis-Stats mit Schwierigkeit skalieren.
     scaled_hp = int(data["hp"] * difficulty_multiplier)
     scaled_ad = int(data["ad"] * difficulty_multiplier)
     scaled_armor = int(data["armor"] * difficulty_multiplier)
