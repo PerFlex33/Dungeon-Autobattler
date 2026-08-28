@@ -1,11 +1,12 @@
 """
 Haupteinstiegspunkt für das Spiel mit Pygame-GUI.
 Beinhaltet die Render-Logik für die Dungeon-Map, das interaktive Inventar-Overlay,
-die schrittweise visuelle Abwicklung von Kämpfen sowie den Händler-Shop.
+die schrittweise visuelle Abwicklung von Kämpfen sowie den Händler-Shop (Kaufen/Verkaufen).
 """
 
 import random
 import sys
+from dataclasses import dataclass
 
 import pygame
 
@@ -26,6 +27,17 @@ TILE_SIZE = 40
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 FPS = 60
+
+
+@dataclass
+class UIState:
+    """Speichert den aktuellen Status der Benutzeroberfläche streng typisiert."""
+
+    show_inventory: bool = False
+    inv_selection: int = 0
+    show_shop: bool = False
+    shop_selection: int = 0
+    shop_mode: str = "buy"
 
 
 def main() -> None:
@@ -162,7 +174,6 @@ def main() -> None:
             create_enemy(enemy_type, difficulty_multiplier=engine.difficulty),
         )
 
-    # Das Schwert des Feuers nutzt nun offiziell den Waffenslot
     engine.shop_items = [
         Item(
             "Schwert des Feuers",
@@ -221,12 +232,7 @@ def main() -> None:
     font = pygame.font.SysFont("Arial", 24)
     small_font = pygame.font.SysFont("Arial", 18)
 
-    state = {
-        "show_inventory": False,
-        "inv_selection": 0,
-        "show_shop": False,
-        "shop_selection": 0,
-    }
+    state = UIState()
 
     display_slots = {
         "weapon": "Waffe",
@@ -285,7 +291,7 @@ def main() -> None:
         screen.blit(hp_text, (10, 40))
         screen.blit(lvl_text, (10, 70))
 
-        if not state["show_shop"] and not state["show_inventory"]:
+        if not state.show_shop and not state.show_inventory:
             if (
                 engine.game_map.tiles[engine.player_pos.y][engine.player_pos.x]
                 == TileType.SHOP
@@ -303,7 +309,7 @@ def main() -> None:
                     hint_text, (SCREEN_WIDTH // 2 - 110, SCREEN_HEIGHT - 55)
                 )
 
-        if state["show_inventory"]:
+        if state.show_inventory:
             overlay = pygame.Surface((760, 480))
             overlay.set_alpha(245)
             overlay.fill((40, 40, 40))
@@ -362,7 +368,7 @@ def main() -> None:
 
             for i, item in enumerate(engine.player.items):
                 is_equipped = item in engine.player.equipment.values()
-                prefix = "-> " if i == state["inv_selection"] else "   "
+                prefix = "-> " if i == state.inv_selection else "   "
                 suffix = " [ANGELEGT]" if is_equipped else ""
 
                 if getattr(item, "is_consumable", False):
@@ -375,7 +381,7 @@ def main() -> None:
                     slot_info = ""
 
                 color = (200, 200, 200)
-                if i == state["inv_selection"]:
+                if i == state.inv_selection:
                     color = (255, 255, 0)
                 elif is_equipped:
                     color = (100, 255, 100)
@@ -396,7 +402,7 @@ def main() -> None:
                 pygame.draw.line(
                     screen, (100, 100, 100), (420, 360), (740, 360), 2
                 )
-                selected = engine.player.items[state["inv_selection"]]
+                selected = engine.player.items[state.inv_selection]
                 detail_title = small_font.render(
                     f"Info: {selected.name}", True, (255, 200, 50)
                 )
@@ -446,65 +452,98 @@ def main() -> None:
                             (420 + stat_col * 150, 405 + stat_row * 22),
                         )
 
-        if state["show_shop"]:
-            overlay = pygame.Surface((600, 400))
+        if state.show_shop:
+            # Vergrößertes Shop-Overlay (Größe auf 600x480 erhöht, damit mehr Platz ist)
+            overlay = pygame.Surface((600, 480))
             overlay.set_alpha(245)
             overlay.fill((20, 20, 50))
-            screen.blit(overlay, (100, 100))
-            pygame.draw.rect(screen, (100, 100, 255), (100, 100, 600, 400), 3)
+            screen.blit(overlay, (100, 60))
+            pygame.draw.rect(screen, (100, 100, 255), (100, 60, 600, 480), 3)
 
-            shop_title = font.render("Wanderhändler", True, (255, 215, 0))
-            screen.blit(shop_title, (130, 120))
+            mode_text = "KAUFEN" if state.shop_mode == "buy" else "VERKAUFEN"
+            shop_title = font.render(
+                f"Wanderhändler - {mode_text}", True, (255, 215, 0)
+            )
+            screen.blit(shop_title, (130, 80))
 
             nav_info = small_font.render(
-                "W/S: Wählen | E: Kaufen | Q: Verlassen", True, (0, 255, 255)
+                "W/S: Wählen | E: Aktion | TAB: Modus | Q: Verlassen",
+                True,
+                (0, 255, 255),
             )
-            screen.blit(nav_info, (130, 160))
+            screen.blit(nav_info, (130, 115))
 
-            pygame.draw.line(screen, (100, 100, 255), (130, 190), (670, 190), 2)
+            pygame.draw.line(screen, (100, 100, 255), (130, 145), (670, 145), 2)
 
-            if not engine.shop_items:
-                sold_out = font.render(
-                    "Ausverkauft! Komme später wieder.", True, (150, 150, 150)
+            active_list = (
+                engine.shop_items
+                if state.shop_mode == "buy"
+                else engine.player.items
+            )
+
+            if not active_list:
+                msg = (
+                    "Ausverkauft!"
+                    if state.shop_mode == "buy"
+                    else "Dein Rucksack ist leer."
                 )
-                screen.blit(sold_out, (130, 210))
+                sold_out = font.render(msg, True, (150, 150, 150))
+                screen.blit(sold_out, (130, 170))
             else:
-                for i, item in enumerate(engine.shop_items):
-                    prefix = "-> " if i == state["shop_selection"] else "   "
+                for i, item in enumerate(active_list):
+                    prefix = "-> " if i == state.shop_selection else "   "
                     color = (
                         (255, 255, 0)
-                        if i == state["shop_selection"]
+                        if i == state.shop_selection
                         else (200, 200, 200)
                     )
 
-                    can_afford = engine.player.gold >= item.price
-                    price_color = (
-                        (100, 255, 100) if can_afford else (255, 100, 100)
-                    )
+                    if state.shop_mode == "buy":
+                        can_afford = engine.player.gold >= item.price
+                        price_color = (
+                            (100, 255, 100) if can_afford else (255, 100, 100)
+                        )
+                        price_val = item.price
+                        suffix = ""
+                    else:
+                        price_color = (100, 255, 100)
+                        price_val = item.price // 2
+                        is_equipped = item in engine.player.equipment.values()
+                        if is_equipped:
+                            color = (
+                                (100, 255, 100)
+                                if i != state.shop_selection
+                                else (255, 255, 150)
+                            )
+                            suffix = " [ANGELEGT]"
+                        else:
+                            suffix = ""
 
                     item_text = small_font.render(
-                        f"{prefix}{item.name} ({item.rarity.value})",
+                        f"{prefix}{item.name} ({item.rarity.value}){suffix}",
                         True,
                         color,
                     )
                     price_text = small_font.render(
-                        f"Preis: {item.price} G", True, price_color
+                        f"Preis: {price_val} G", True, price_color
                     )
 
-                    screen.blit(item_text, (130, 210 + i * 35))
-                    screen.blit(price_text, (550, 210 + i * 35))
+                    # Kompakterer Abstand (30 Pixel statt 35), damit viele Items reinpassen
+                    screen.blit(item_text, (130, 165 + i * 30))
+                    screen.blit(price_text, (530, 165 + i * 30))
 
+                # Die Detail-Box weiter nach unten verschoben (Y=370), damit sich nichts überschneidet
                 pygame.draw.line(
-                    screen, (100, 100, 255), (130, 320), (670, 320), 2
+                    screen, (100, 100, 255), (130, 360), (670, 360), 2
                 )
-                selected = engine.shop_items[state["shop_selection"]]
+                selected = active_list[state.shop_selection]
                 if getattr(selected, "is_consumable", False):
                     desc = small_font.render(
                         f"Effekt: Heilt {selected.heal_amount} HP",
                         True,
                         (50, 255, 50),
                     )
-                    screen.blit(desc, (130, 340))
+                    screen.blit(desc, (130, 380))
                 else:
                     item_stats = selected.bonus_stats
                     stat_texts = []
@@ -539,7 +578,7 @@ def main() -> None:
                         stat_row = idx // 3
                         screen.blit(
                             small_font.render(text, True, (200, 255, 200)),
-                            (130 + stat_col * 180, 340 + stat_row * 22),
+                            (130 + stat_col * 180, 380 + stat_row * 22),
                         )
 
         if current_enemy:
@@ -572,7 +611,7 @@ def main() -> None:
             screen.blit(p_text, (SCREEN_WIDTH // 2 - 150, 95))
             screen.blit(e_text, (SCREEN_WIDTH // 2 - 150, 130))
 
-        if not state["show_inventory"] and not state["show_shop"]:
+        if not state.show_inventory and not state.show_shop:
             log_surface = pygame.Surface((380, 160))
             log_surface.set_alpha(200)
             log_surface.fill((20, 20, 20))
@@ -610,9 +649,9 @@ def main() -> None:
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_i and not state["show_shop"]:
-                    state["show_inventory"] = not state["show_inventory"]
-                    state["inv_selection"] = 0
+                if event.key == pygame.K_i and not state.show_shop:
+                    state.show_inventory = not state.show_inventory
+                    state.inv_selection = 0
                 elif event.key == pygame.K_F5:
                     try:
                         engine.save_game("savegame.json")
@@ -621,56 +660,82 @@ def main() -> None:
                 elif event.key == pygame.K_F9 or event.key == pygame.K_l:
                     try:
                         engine = Engine.load_game("savegame.json")
-                        state["show_inventory"] = False
-                        state["show_shop"] = False
+                        state.show_inventory = False
+                        state.show_shop = False
                     except DungeonError as e:
                         print(f"Fehler beim Laden: {e}")
 
-                elif state["show_shop"]:
-                    if event.key in (pygame.K_w, pygame.K_UP):
-                        state["shop_selection"] = max(
-                            0, state["shop_selection"] - 1
+                elif state.show_shop:
+                    active_list = (
+                        engine.shop_items
+                        if state.shop_mode == "buy"
+                        else engine.player.items
+                    )
+
+                    if event.key == pygame.K_TAB:
+                        state.shop_mode = (
+                            "sell" if state.shop_mode == "buy" else "buy"
                         )
+                        state.shop_selection = 0
+                    elif event.key in (pygame.K_w, pygame.K_UP):
+                        state.shop_selection = max(0, state.shop_selection - 1)
                     elif event.key in (pygame.K_s, pygame.K_DOWN):
-                        if engine.shop_items:
-                            state["shop_selection"] = min(
-                                len(engine.shop_items) - 1,
-                                state["shop_selection"] + 1,
+                        if active_list:
+                            state.shop_selection = min(
+                                len(active_list) - 1, state.shop_selection + 1
                             )
                     elif event.key in (pygame.K_e, pygame.K_RETURN):
-                        if engine.shop_items:
-                            selected_item = engine.shop_items[
-                                state["shop_selection"]
-                            ]
-                            if engine.player.gold >= selected_item.price:
-                                engine.player.gold -= selected_item.price
-                                engine.player.items.append(selected_item)
-                                engine.shop_items.pop(state["shop_selection"])
+                        if active_list:
+                            selected_item = active_list[state.shop_selection]
+
+                            if state.shop_mode == "buy":
+                                if engine.player.gold >= selected_item.price:
+                                    engine.player.gold -= selected_item.price
+                                    engine.player.items.append(selected_item)
+                                    engine.shop_items.pop(state.shop_selection)
+
+                                    if (
+                                        state.shop_selection
+                                        >= len(engine.shop_items)
+                                        and state.shop_selection > 0
+                                    ):
+                                        state.shop_selection -= 1
+
+                            elif state.shop_mode == "sell":
+                                equipped_keys = [
+                                    k
+                                    for k, v in engine.player.equipment.items()
+                                    if v == selected_item
+                                ]
+                                for k in equipped_keys:
+                                    engine.player.equipment[k] = None
+
+                                engine.player.gold += selected_item.price // 2
+                                engine.player.items.pop(state.shop_selection)
 
                                 if (
-                                    state["shop_selection"]
-                                    >= len(engine.shop_items)
-                                    and state["shop_selection"] > 0
+                                    state.shop_selection
+                                    >= len(engine.player.items)
+                                    and state.shop_selection > 0
                                 ):
-                                    state["shop_selection"] -= 1
-                    elif event.key in (pygame.K_q, pygame.K_ESCAPE):
-                        state["show_shop"] = False
+                                    state.shop_selection -= 1
 
-                elif state["show_inventory"]:
+                    elif event.key in (pygame.K_q, pygame.K_ESCAPE):
+                        state.show_shop = False
+
+                elif state.show_inventory:
                     if event.key in (pygame.K_w, pygame.K_UP):
-                        state["inv_selection"] = max(
-                            0, state["inv_selection"] - 1
-                        )
+                        state.inv_selection = max(0, state.inv_selection - 1)
                     elif event.key in (pygame.K_s, pygame.K_DOWN):
                         if engine.player.items:
-                            state["inv_selection"] = min(
+                            state.inv_selection = min(
                                 len(engine.player.items) - 1,
-                                state["inv_selection"] + 1,
+                                state.inv_selection + 1,
                             )
                     elif event.key in (pygame.K_e, pygame.K_RETURN):
                         if engine.player.items:
                             selected_item = engine.player.items[
-                                state["inv_selection"]
+                                state.inv_selection
                             ]
 
                             if getattr(selected_item, "is_consumable", False):
@@ -681,16 +746,14 @@ def main() -> None:
                                         current_hp + selected_item.heal_amount,
                                         max_hp,
                                     )
-                                    engine.player.items.pop(
-                                        state["inv_selection"]
-                                    )
+                                    engine.player.items.pop(state.inv_selection)
 
                                     if (
-                                        state["inv_selection"]
+                                        state.inv_selection
                                         >= len(engine.player.items)
-                                        and state["inv_selection"] > 0
+                                        and state.inv_selection > 0
                                     ):
-                                        state["inv_selection"] -= 1
+                                        state.inv_selection -= 1
 
                             elif selected_item.slot:
                                 equipped_keys = [
@@ -747,8 +810,9 @@ def main() -> None:
                             ]
                             == TileType.SHOP
                         ):
-                            state["show_shop"] = True
-                            state["shop_selection"] = 0
+                            state.show_shop = True
+                            state.shop_selection = 0
+                            state.shop_mode = "buy"
 
         draw_scene()
         clock.tick(FPS)
