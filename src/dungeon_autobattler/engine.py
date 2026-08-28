@@ -63,23 +63,13 @@ class GameMap:
         ]
 
     def is_walkable(self, pos: Position) -> bool:
-        """
-        Prüft, ob eine Position innerhalb der Karte liegt und kein Hindernis ist.
-
-        Args:
-            pos: Die zu prüfende Position.
-
-        Returns:
-            True, wenn das Feld betretbar ist.
-        """
+        """Prüft, ob eine Position innerhalb der Karte liegt und kein Hindernis ist."""
         if not (0 <= pos.x < self.width and 0 <= pos.y < self.height):
             return False
         return self.tiles[pos.y][pos.x] != TileType.WALL
 
     def set_tile(self, x: int, y: int, tile_type: TileType) -> None:
-        """
-        Setzt einen spezifischen Kachel-Typ an einer Position.
-        """
+        """Setzt einen spezifischen Kachel-Typ an einer Position."""
         if 0 <= x < self.width and 0 <= y < self.height:
             self.tiles[y][x] = tile_type
 
@@ -125,7 +115,7 @@ class Engine:
         ui_callback: Optional[Callable[[Character], None]] = None,
     ) -> bool:
         """
-        Verarbeitet die Fortbewegung des Spielers und behandelt Kollisionen mit Entitäten (Shop, Gegner, Exit).
+        Verarbeitet die Fortbewegung des Spielers und behandelt Kollisionen mit Entitäten (Gegner, Exit).
 
         Args:
             dx: Bewegung auf der X-Achse (-1, 0, 1).
@@ -164,14 +154,6 @@ class Engine:
                     return False
 
             elif tile == TileType.SHOP:
-                if self.shop_items:
-                    item = self.shop_items[0]
-                    cost = 20
-                    if self.player.gold >= cost:
-                        self.player.gold -= cost
-                        self.player.items.append(item)
-                        self.shop_items.pop(0)
-
                 self.player_pos = new_pos
                 return True
 
@@ -189,19 +171,7 @@ class Engine:
         enemy: Character,
         ui_callback: Optional[Callable[[Character], None]] = None,
     ) -> bool:
-        """
-        Führt einen automatisierten Kampf Schritt für Schritt durch, bis eine Partei stirbt.
-
-        Args:
-            enemy: Der verteidigende Gegner.
-            ui_callback: Hook zur Aktualisierung des Game-Renderings nach jedem Schlag.
-
-        Returns:
-            True, wenn der Spieler den Kampf überlebt hat, andernfalls False.
-
-        Raises:
-            DungeonError: Wenn Spieler oder Gegner bereits tot sind, bevor der Kampf startet.
-        """
+        """Führt einen automatisierten Kampf Schritt für Schritt durch, bis eine Partei stirbt."""
         if not self.player.is_alive():
             raise DungeonError("Ein toter Spieler kann nicht kämpfen.")
         if not enemy.is_alive():
@@ -226,10 +196,7 @@ class Engine:
         return self.player.is_alive()
 
     def _execute_attack(self, attacker: Character, defender: Character) -> None:
-        """
-        Berechnet intern den Schaden eines Angriffs inklusive Ausweichen, kritischen Treffern und Rüstungsreduktion.
-        Protokolliert das Resultat in der `combat_log`-Liste.
-        """
+        """Berechnet intern den Schaden eines Angriffs und aktualisiert die Logs."""
         att = attacker.current_stats
         deff = defender.current_stats
 
@@ -267,15 +234,7 @@ class Engine:
         )
 
     def save_game(self, filepath: str) -> None:
-        """
-        Serialisiert den aktuellen Spielzustand und schreibt ihn in eine JSON-Datei.
-
-        Args:
-            filepath: Der Pfad zur Zieldatei.
-
-        Raises:
-            SaveGameError: Bei Problemen mit den Dateiberechtigungen oder Speichermedien.
-        """
+        """Serialisiert den aktuellen Spielzustand und schreibt ihn in eine JSON-Datei."""
         data = {
             "player": asdict(self.player),
             "player_pos": asdict(self.player_pos),
@@ -300,18 +259,7 @@ class Engine:
 
     @classmethod
     def load_game(cls, filepath: str) -> "Engine":
-        """
-        Lädt einen Spielzustand aus einer JSON-Datei und rekonstruiert alle Objekte.
-
-        Args:
-            filepath: Pfad zur JSON-Speicherdatei.
-
-        Returns:
-            Eine vollständig wiederhergestellte Instanz der Engine.
-
-        Raises:
-            LoadGameError: Wenn die Datei korrupt ist, Variablen fehlen oder das JSON fehlerhaft ist.
-        """
+        """Lädt einen Spielzustand aus einer JSON-Datei und rekonstruiert alle Objekte."""
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -319,7 +267,6 @@ class Engine:
             p_data = data["player"]
             p_stats = Stats(**p_data["base_stats"])
 
-            # Rekonstruktion des Rucksack-Inventars
             player = Character(
                 name=p_data["name"],
                 base_stats=p_stats,
@@ -333,6 +280,7 @@ class Engine:
                         else None,
                         is_consumable=i.get("is_consumable", False),
                         heal_amount=i.get("heal_amount", 0),
+                        price=i.get("price", 20),
                     )
                     for i in p_data.get("items", [])
                 ],
@@ -341,7 +289,6 @@ class Engine:
                 level=p_data.get("level", 1),
             )
 
-            # Rekonstruktion der angelegten Ausrüstung
             if "equipment" in p_data:
                 for slot_key, i_data in p_data["equipment"].items():
                     if i_data:
@@ -354,6 +301,7 @@ class Engine:
                             else None,
                             is_consumable=i_data.get("is_consumable", False),
                             heal_amount=i_data.get("heal_amount", 0),
+                            price=i_data.get("price", 20),
                         )
 
             m_data = data["map"]

@@ -87,6 +87,7 @@ class Stats:
 class EquipmentSlot(Enum):
     """Verfügbare Ausrüstungs-Slots für Items."""
 
+    WEAPON = "weapon"
     HELMET = "helmet"
     CHESTPLATE = "chestplate"
     PANTS = "pants"
@@ -107,6 +108,7 @@ class Item:
         slot: Der Ausrüstungsslot (falls es anlegbar ist).
         is_consumable: True, wenn das Item verbraucht werden kann (z.B. Tränke).
         heal_amount: Menge an HP, die beim Konsumieren geheilt wird.
+        price: Der Gold-Wert des Items im Shop.
     """
 
     name: str
@@ -115,11 +117,13 @@ class Item:
     slot: EquipmentSlot | None = None
     is_consumable: bool = False
     heal_amount: int = 0
+    price: int = 20
 
 
 def _default_equipment() -> dict[str, Optional["Item"]]:
     """Erzeugt ein leeres Equipment-Dictionary mit allen verfügbaren Slots für neue Charaktere."""
     return {
+        "weapon": None,
         "helmet": None,
         "chestplate": None,
         "pants": None,
@@ -202,35 +206,17 @@ class Character:
         )
 
     def is_alive(self) -> bool:
-        """
-        Prüft, ob der Charakter noch am Leben ist.
-
-        Returns:
-            True, wenn die HP größer als 0 sind.
-        """
+        """Prüft, ob der Charakter noch am Leben ist."""
         return self.current_stats.hp > 0
 
     def take_damage(self, amount: int) -> None:
-        """
-        Reduziert die HP um den übergebenen, final berechneten Schaden.
-
-        Args:
-            amount: Der abzuziehende Schaden (muss >= 0 sein).
-        """
+        """Reduziert die HP um den übergebenen, final berechneten Schaden."""
         if amount < 0:
             raise ValueError("Schadenswert darf nicht negativ sein.")
         self.base_stats.hp = max(0, self.base_stats.hp - amount)
 
     def gain_xp(self, amount: int) -> bool:
-        """
-        Erhöht die XP des Charakters und führt bei Erreichen der Grenze ein Level-Up durch.
-
-        Args:
-            amount: Die Anzahl der zu gewährenden Erfahrungspunkte.
-
-        Returns:
-            True, wenn ein Level-Up stattgefunden hat, sonst False.
-        """
+        """Erhöht die XP des Charakters und führt bei Erreichen der Grenze ein Level-Up durch."""
         self.xp += amount
         xp_needed = self.level * 50
         if self.xp >= xp_needed:
@@ -245,13 +231,7 @@ class Character:
 
 @dataclass
 class Enemy(Character):
-    """
-    Repräsentiert einen Feind auf der Karte.
-
-    Attributes:
-        enemy_type: Die Art des Feindes (z.B. Goblin, Drache).
-        loot_value: Multiplikator für Gold- und Item-Drops.
-    """
+    """Repräsentiert einen Feind auf der Karte."""
 
     enemy_type: EnemyType = EnemyType.GOBLIN
     loot_value: float = 1.0
@@ -260,16 +240,7 @@ class Enemy(Character):
 def create_enemy(
     enemy_type: EnemyType, difficulty_multiplier: float = 1.0
 ) -> Enemy:
-    """
-    Erstellt einen parametrisierten Gegner basierend auf seinem Typ und dem aktuellen Schwierigkeitsgrad.
-
-    Args:
-        enemy_type: Die Art des Gegners aus der EnemyType-Enum.
-        difficulty_multiplier: Skalar, mit dem alle Basis-Stats multipliziert werden.
-
-    Returns:
-        Ein vollständig initialisiertes Enemy-Objekt.
-    """
+    """Erstellt einen parametrisierten Gegner basierend auf seinem Typ und dem aktuellen Schwierigkeitsgrad."""
     base_data = {
         EnemyType.GOBLIN: {
             "hp": 30,
