@@ -291,23 +291,22 @@ def main() -> None:
         screen.blit(hp_text, (10, 40))
         screen.blit(lvl_text, (10, 70))
 
-        if not state.show_shop and not state.show_inventory:
-            if (
-                engine.game_map.tiles[engine.player_pos.y][engine.player_pos.x]
-                == TileType.SHOP
-            ):
-                hint_bg = pygame.Surface((300, 40))
-                hint_bg.set_alpha(180)
-                hint_bg.fill((0, 0, 0))
-                screen.blit(
-                    hint_bg, (SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT - 60)
-                )
-                hint_text = font.render(
-                    "[E] Händler ansprechen", True, (255, 255, 255)
-                )
-                screen.blit(
-                    hint_text, (SCREEN_WIDTH // 2 - 110, SCREEN_HEIGHT - 55)
-                )
+        if (
+            not state.show_shop
+            and not state.show_inventory
+            and engine.game_map.tiles[engine.player_pos.y][engine.player_pos.x]
+            == TileType.SHOP
+        ):
+            hint_bg = pygame.Surface((300, 40))
+            hint_bg.set_alpha(180)
+            hint_bg.fill((0, 0, 0))
+            screen.blit(hint_bg, (SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT - 60))
+            hint_text = font.render(
+                "[E] Händler ansprechen", True, (255, 255, 255)
+            )
+            screen.blit(
+                hint_text, (SCREEN_WIDTH // 2 - 110, SCREEN_HEIGHT - 55)
+            )
 
         if state.show_inventory:
             overlay = pygame.Surface((760, 480))
@@ -732,67 +731,67 @@ def main() -> None:
                                 len(engine.player.items) - 1,
                                 state.inv_selection + 1,
                             )
-                    elif event.key in (pygame.K_e, pygame.K_RETURN):
-                        if engine.player.items:
-                            selected_item = engine.player.items[
-                                state.inv_selection
+                    elif (
+                        event.key in (pygame.K_e, pygame.K_RETURN)
+                        and engine.player.items
+                    ):
+                        selected_item = engine.player.items[state.inv_selection]
+
+                        if getattr(selected_item, "is_consumable", False):
+                            max_hp = engine.player.current_stats.max_hp
+                            current_hp = engine.player.base_stats.hp
+                            if current_hp < max_hp:
+                                engine.player.base_stats.hp = min(
+                                    current_hp + selected_item.heal_amount,
+                                    max_hp,
+                                )
+                                engine.player.items.pop(state.inv_selection)
+
+                                if (
+                                    state.inv_selection
+                                    >= len(engine.player.items)
+                                    and state.inv_selection > 0
+                                ):
+                                    state.inv_selection -= 1
+
+                        elif selected_item.slot:
+                            equipped_keys = [
+                                k
+                                for k, v in engine.player.equipment.items()
+                                if v == selected_item
                             ]
-
-                            if getattr(selected_item, "is_consumable", False):
-                                max_hp = engine.player.current_stats.max_hp
-                                current_hp = engine.player.base_stats.hp
-                                if current_hp < max_hp:
-                                    engine.player.base_stats.hp = min(
-                                        current_hp + selected_item.heal_amount,
-                                        max_hp,
+                            if equipped_keys:
+                                for k in equipped_keys:
+                                    engine.player.equipment[k] = None
+                            else:
+                                slot_key = selected_item.slot.value
+                                if slot_key == "ring":
+                                    free_slot = next(
+                                        (
+                                            r
+                                            for r in [
+                                                "ring_1",
+                                                "ring_2",
+                                                "ring_3",
+                                                "ring_4",
+                                            ]
+                                            if engine.player.equipment[r]
+                                            is None
+                                        ),
+                                        None,
                                     )
-                                    engine.player.items.pop(state.inv_selection)
-
-                                    if (
-                                        state.inv_selection
-                                        >= len(engine.player.items)
-                                        and state.inv_selection > 0
-                                    ):
-                                        state.inv_selection -= 1
-
-                            elif selected_item.slot:
-                                equipped_keys = [
-                                    k
-                                    for k, v in engine.player.equipment.items()
-                                    if v == selected_item
-                                ]
-                                if equipped_keys:
-                                    for k in equipped_keys:
-                                        engine.player.equipment[k] = None
-                                else:
-                                    slot_key = selected_item.slot.value
-                                    if slot_key == "ring":
-                                        free_slot = next(
-                                            (
-                                                r
-                                                for r in [
-                                                    "ring_1",
-                                                    "ring_2",
-                                                    "ring_3",
-                                                    "ring_4",
-                                                ]
-                                                if engine.player.equipment[r]
-                                                is None
-                                            ),
-                                            None,
-                                        )
-                                        if free_slot:
-                                            engine.player.equipment[
-                                                free_slot
-                                            ] = selected_item
-                                        else:
-                                            engine.player.equipment[
-                                                "ring_1"
-                                            ] = selected_item
-                                    else:
-                                        engine.player.equipment[slot_key] = (
+                                    if free_slot:
+                                        engine.player.equipment[free_slot] = (
                                             selected_item
                                         )
+                                    else:
+                                        engine.player.equipment["ring_1"] = (
+                                            selected_item
+                                        )
+                                else:
+                                    engine.player.equipment[slot_key] = (
+                                        selected_item
+                                    )
 
                 else:
                     if event.key == pygame.K_w:
@@ -803,16 +802,16 @@ def main() -> None:
                         engine.move_player(-1, 0, ui_callback=combat_callback)
                     elif event.key == pygame.K_d:
                         engine.move_player(1, 0, ui_callback=combat_callback)
-                    elif event.key == pygame.K_e:
-                        if (
-                            engine.game_map.tiles[engine.player_pos.y][
-                                engine.player_pos.x
-                            ]
-                            == TileType.SHOP
-                        ):
-                            state.show_shop = True
-                            state.shop_selection = 0
-                            state.shop_mode = "buy"
+                    elif (
+                        event.key == pygame.K_e
+                        and engine.game_map.tiles[engine.player_pos.y][
+                            engine.player_pos.x
+                        ]
+                        == TileType.SHOP
+                    ):
+                        state.show_shop = True
+                        state.shop_selection = 0
+                        state.shop_mode = "buy"
 
         draw_scene()
         clock.tick(FPS)

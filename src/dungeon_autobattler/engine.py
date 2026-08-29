@@ -5,9 +5,9 @@ Kernlogik des Spiels inklusive Map-Verwaltung, Kampfabwicklung und Spielstandsve
 import json
 import math
 import random
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Callable, Optional
 
 from dungeon_autobattler.models import (
     Character,
@@ -112,7 +112,7 @@ class Engine:
         self,
         dx: int,
         dy: int,
-        ui_callback: Optional[Callable[[Character], None]] = None,
+        ui_callback: Callable[[Character], None] | None = None,
     ) -> bool:
         """
         Verarbeitet die Fortbewegung des Spielers und behandelt Kollisionen mit Entitäten (Gegner, Exit).
@@ -169,7 +169,7 @@ class Engine:
     def resolve_combat(
         self,
         enemy: Character,
-        ui_callback: Optional[Callable[[Character], None]] = None,
+        ui_callback: Callable[[Character], None] | None = None,
     ) -> bool:
         """Führt einen automatisierten Kampf Schritt für Schritt durch, bis eine Partei stirbt."""
         if not self.player.is_alive():
