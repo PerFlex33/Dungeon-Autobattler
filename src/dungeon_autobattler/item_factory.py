@@ -28,6 +28,91 @@ RARITY_WEIGHTS = {
 
 # Zentrale Datenbank der "Base Types" (Grund-Items)
 BASE_ITEMS = [
+    Item(
+        "Rapier",
+        Rarity.COMMON,
+        Stats(hp=0, max_hp=0, ad=6, armor=0, accuracy=120, crit_chance=0.15),
+        EquipmentSlot.WEAPON,
+        price=18,
+    ),
+    Item(
+        "Kriegshammer",
+        Rarity.COMMON,
+        Stats(
+            hp=0,
+            max_hp=0,
+            ad=12,
+            armor=0,
+            accuracy=85,
+            crit_chance=0.05,
+            crit_multiplier=2.0,
+        ),
+        EquipmentSlot.WEAPON,
+        price=22,
+    ),
+    Item(
+        "Zauberstab",
+        Rarity.COMMON,
+        Stats(hp=0, max_hp=0, ad=8, armor=0, evasion_rating=10),
+        EquipmentSlot.WEAPON,
+        price=20,
+    ),
+    Item(
+        "Kettenhemd",
+        Rarity.COMMON,
+        Stats(hp=15, max_hp=15, ad=0, armor=10),
+        EquipmentSlot.CHESTPLATE,
+        price=20,
+    ),
+    Item(
+        "Magierrobe",
+        Rarity.COMMON,
+        Stats(hp=5, max_hp=5, ad=0, armor=2, evasion_rating=15),
+        EquipmentSlot.CHESTPLATE,
+        price=18,
+    ),
+    Item(
+        "Lederhose",
+        Rarity.COMMON,
+        Stats(hp=5, max_hp=5, ad=0, armor=4, evasion_rating=5),
+        EquipmentSlot.PANTS,
+        price=12,
+    ),
+    Item(
+        "Plattenbeinschienen",
+        Rarity.COMMON,
+        Stats(hp=10, max_hp=10, ad=0, armor=10),
+        EquipmentSlot.PANTS,
+        price=25,
+    ),
+    Item(
+        "Lederstiefel",
+        Rarity.COMMON,
+        Stats(hp=0, max_hp=0, ad=0, armor=2, evasion_rating=10),
+        EquipmentSlot.SHOES,
+        price=10,
+    ),
+    Item(
+        "Eisenstiefel",
+        Rarity.COMMON,
+        Stats(hp=5, max_hp=5, ad=0, armor=6),
+        EquipmentSlot.SHOES,
+        price=15,
+    ),
+    Item(
+        "Ring des Berserkers",
+        Rarity.COMMON,
+        Stats(hp=0, max_hp=0, ad=5, armor=2, crit_chance=0.10),
+        EquipmentSlot.RING,
+        price=25,
+    ),
+    Item(
+        "Amulett der Vitalität",
+        Rarity.COMMON,
+        Stats(hp=30, max_hp=30, ad=0, armor=0),
+        EquipmentSlot.AMULET,
+        price=30,
+    ),
     # Waffen
     Item(
         "Kurzschwert",
@@ -107,6 +192,22 @@ BASE_CONSUMABLES = [
         is_consumable=True,
         heal_amount=80,
         price=30,
+    ),
+    Item(
+        "Riesiger Heiltrank",
+        Rarity.EPIC,
+        Stats(hp=0, max_hp=0, ad=0, armor=0),
+        is_consumable=True,
+        heal_amount=150,
+        price=60,
+    ),
+    Item(
+        "Göttertrank",
+        Rarity.LEGENDARY,
+        Stats(hp=0, max_hp=0, ad=0, armor=0),
+        is_consumable=True,
+        heal_amount=500,
+        price=150,
     ),
 ]
 
