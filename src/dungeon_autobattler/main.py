@@ -18,6 +18,7 @@ from dungeon_autobattler.item_factory import (
 from dungeon_autobattler.models import (
     Character,
     DungeonError,
+    Enemy,
     EnemyType,
     Rarity,
     Stats,
@@ -114,7 +115,32 @@ def main() -> None:
                 elif tile == TileType.EMPTY:
                     pygame.draw.rect(screen, (50, 50, 50), rect, 1)
                 elif tile == TileType.ENEMY:
-                    pygame.draw.rect(screen, (200, 0, 0), rect)
+                    enemy = engine.enemies.get((x, y))
+                    if isinstance(enemy, Enemy):
+                        enemy_colors = {
+                            EnemyType.GOBLIN: (34, 139, 34),
+                            EnemyType.SKELETON: (200, 200, 200),
+                            EnemyType.ORC: (0, 100, 0),
+                            EnemyType.MAGE: (100, 100, 255),
+                            EnemyType.KNIGHT: (150, 150, 170),
+                            EnemyType.DRAGON: (139, 0, 0),
+                        }
+                        color = enemy_colors.get(enemy.enemy_type, (200, 0, 0))
+                        pygame.draw.rect(screen, color, rect)
+
+                        initial = enemy.name[0]
+                        text_surface = small_font.render(
+                            initial, True, (255, 255, 255)
+                        )
+                        text_rect = text_surface.get_rect(
+                            center=(
+                                x * TILE_SIZE + TILE_SIZE // 2,
+                                y * TILE_SIZE + TILE_SIZE // 2,
+                            )
+                        )
+                        screen.blit(text_surface, text_rect)
+                    else:
+                        pygame.draw.rect(screen, (200, 0, 0), rect)
                 elif tile == TileType.BOSS:
                     pygame.draw.rect(screen, (150, 0, 150), rect)
                 elif tile == TileType.SHOP:
