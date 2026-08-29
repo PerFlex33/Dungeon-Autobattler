@@ -31,6 +31,8 @@ class TileType(Enum):
     BOSS = "B"
     EXIT = "X"
     SHOP = "S"
+    CHEST = "C"
+    LOCKED_CHEST = "L"
 
 
 @dataclass
@@ -116,17 +118,6 @@ class Engine:
     ) -> bool:
         """
         Verarbeitet die Fortbewegung des Spielers und behandelt Kollisionen mit Entitäten (Gegner, Exit).
-
-        Args:
-            dx: Bewegung auf der X-Achse (-1, 0, 1).
-            dy: Bewegung auf der Y-Achse (-1, 0, 1).
-            ui_callback: Optionale Funktion, die bei Kampf-Events zum Zeichnen der UI aufgerufen wird.
-
-        Returns:
-            True, wenn die Bewegung oder Interaktion erfolgreich war. False bei blockierten Wegen.
-
-        Raises:
-            InvalidMoveError: Wenn dx oder dy größer als 1 (oder kleiner als -1) sind.
         """
         if abs(dx) > 1 or abs(dy) > 1:
             raise InvalidMoveError("Spieler kann nur maximal 1 Feld ziehen.")
@@ -137,7 +128,7 @@ class Engine:
         if self.game_map.is_walkable(new_pos):
             tile = self.game_map.tiles[new_pos.y][new_pos.x]
 
-            if tile == TileType.ENEMY:
+            if tile in (TileType.ENEMY, TileType.BOSS):
                 enemy = self.enemies.get((new_pos.x, new_pos.y))
                 if enemy:
                     won = self.resolve_combat(enemy, ui_callback)
@@ -145,12 +136,88 @@ class Engine:
                         self.player.gold += enemy.gold
                         self.player.gain_xp(25)
 
+                        # Boss droppt garantierten Schlüssel
+                        if tile == TileType.BOSS:
+                            boss_key = Item(
+                                name="Boss-Schlüssel",
+                                rarity=Rarity.EPIC,
+                                bonus_stats=Stats(
+                                    hp=0,
+                                    max_hp=0,
+                                    ad=0,
+                                    armor=0,
+                                    evasion_rating=0,
+                                    accuracy=0,
+                                ),
+                                price=0,
+                            )
+                            self.player.items.append(boss_key)
+                            self.combat_log.append(
+                                "Boss besiegt! Boss-Schlüssel erbeutet."
+                            )
+
                         self.game_map.set_tile(
                             new_pos.x, new_pos.y, TileType.EMPTY
                         )
                         del self.enemies[(new_pos.x, new_pos.y)]
                         self.player_pos = new_pos
                         return True
+                    return False
+
+            elif tile == TileType.CHEST:
+                if random.random() > 0.5:
+                    gold_amount = random.randint(15, 40)
+                    self.player.gold += gold_amount
+                    self.combat_log.append(
+                        f"Schatztruhe geöffnet! {gold_amount} Gold erhalten."
+                    )
+                else:
+                    from dungeon_autobattler.item_factory import (
+                        generate_random_equipment,
+                    )
+
+                    loot_item = generate_random_equipment()
+                    self.player.items.append(loot_item)
+                    self.combat_log.append(
+                        f"Schatztruhe geöffnet! {loot_item.name} gefunden."
+                    )
+
+                self.game_map.set_tile(new_pos.x, new_pos.y, TileType.EMPTY)
+                self.player_pos = new_pos
+                return True
+
+            elif tile == TileType.LOCKED_CHEST:
+                key_item = next(
+                    (
+                        i
+                        for i in self.player.items
+                        if i.name == "Boss-Schlüssel"
+                    ),
+                    None,
+                )
+
+                if key_item:
+                    self.player.items.remove(key_item)
+                    from dungeon_autobattler.item_factory import (
+                        generate_random_equipment,
+                    )
+
+                    epic_loot = generate_random_equipment(
+                        forced_rarity=Rarity.EPIC
+                    )
+                    self.player.items.append(epic_loot)
+
+                    self.player.gold += 150
+                    self.combat_log.append(
+                        f"Boss-Schlüssel benutzt! 150 Gold & {epic_loot.name} erbeutet."
+                    )
+                    self.game_map.set_tile(new_pos.x, new_pos.y, TileType.EMPTY)
+                    self.player_pos = new_pos
+                    return True
+                else:
+                    self.combat_log.append(
+                        "Truhe verschlossen! Ein Boss-Schlüssel wird benötigt."
+                    )
                     return False
 
             elif tile == TileType.SHOP:

@@ -1,7 +1,5 @@
 """
 Haupteinstiegspunkt für das Spiel mit Pygame-GUI.
-Beinhaltet die Render-Logik für die Dungeon-Map, das interaktive Inventar-Overlay,
-die schrittweise visuelle Abwicklung von Kämpfen sowie den Händler-Shop (Kaufen/Verkaufen).
 """
 
 import random
@@ -12,12 +10,15 @@ import pygame
 
 from dungeon_autobattler.engine import Engine, TileType
 from dungeon_autobattler.generator import DungeonGenerator
+from dungeon_autobattler.item_factory import (
+    BASE_CONSUMABLES,
+    generate_random_equipment,
+    generate_shop_inventory,
+)
 from dungeon_autobattler.models import (
     Character,
     DungeonError,
     EnemyType,
-    EquipmentSlot,
-    Item,
     Rarity,
     Stats,
     create_enemy,
@@ -41,10 +42,7 @@ class UIState:
 
 
 def main() -> None:
-    """
-    Initialisiert Pygame, generiert die Startwelt samt Spieler, Items und Gegnern,
-    und startet den Main-Loop.
-    """
+    """Initialisiert Pygame und startet den Main-Loop."""
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Dungeon Autobattler")
@@ -57,108 +55,12 @@ def main() -> None:
 
     player_stats = Stats(hp=80, max_hp=100, ad=10, armor=5)
 
-    start_items = [
-        Item(
-            "Rostiges Schwert",
-            Rarity.COMMON,
-            Stats(
-                hp=0,
-                max_hp=0,
-                ad=5,
-                armor=0,
-                evasion_rating=0,
-                accuracy=0,
-                crit_chance=0.0,
-                crit_multiplier=0.0,
-            ),
-            slot=EquipmentSlot.WEAPON,
-            price=10,
-        ),
-        Item(
-            "Kleiner Heiltrank",
-            Rarity.COMMON,
-            Stats(
-                hp=0,
-                max_hp=0,
-                ad=0,
-                armor=0,
-                evasion_rating=0,
-                accuracy=0,
-                crit_chance=0.0,
-                crit_multiplier=0.0,
-            ),
-            is_consumable=True,
-            heal_amount=30,
-            price=10,
-        ),
-        Item(
-            "Großer Heiltrank",
-            Rarity.RARE,
-            Stats(
-                hp=0,
-                max_hp=0,
-                ad=0,
-                armor=0,
-                evasion_rating=0,
-                accuracy=0,
-                crit_chance=0.0,
-                crit_multiplier=0.0,
-            ),
-            is_consumable=True,
-            heal_amount=80,
-            price=30,
-        ),
-        Item(
-            "Ring des Ausweichens",
-            Rarity.UNCOMMON,
-            Stats(
-                hp=0,
-                max_hp=0,
-                ad=0,
-                armor=0,
-                evasion_rating=40,
-                accuracy=0,
-                crit_chance=0.0,
-                crit_multiplier=0.0,
-            ),
-            slot=EquipmentSlot.RING,
-            price=20,
-        ),
-        Item(
-            "Ring der Brutalität",
-            Rarity.RARE,
-            Stats(
-                hp=0,
-                max_hp=0,
-                ad=8,
-                armor=0,
-                evasion_rating=0,
-                accuracy=0,
-                crit_chance=0.10,
-                crit_multiplier=0.5,
-            ),
-            slot=EquipmentSlot.RING,
-            price=40,
-        ),
-        Item(
-            "Meuchelmörder-Amulett",
-            Rarity.EPIC,
-            Stats(
-                hp=0,
-                max_hp=0,
-                ad=2,
-                armor=0,
-                evasion_rating=0,
-                accuracy=20,
-                crit_chance=0.15,
-                crit_multiplier=1.0,
-            ),
-            slot=EquipmentSlot.AMULET,
-            price=60,
-        ),
-    ]
+    start_weapon = generate_random_equipment(forced_rarity=Rarity.COMMON)
+    start_potion = BASE_CONSUMABLES[0]
 
-    player = Character(name="Held", base_stats=player_stats, items=start_items)
+    player = Character(
+        name="Held", base_stats=player_stats, items=[start_weapon, start_potion]
+    )
     player.gold = 50
 
     start_pos = generator.find_free_tile(game_map)
@@ -174,57 +76,7 @@ def main() -> None:
             create_enemy(enemy_type, difficulty_multiplier=engine.difficulty),
         )
 
-    engine.shop_items = [
-        Item(
-            "Schwert des Feuers",
-            Rarity.RARE,
-            Stats(
-                hp=0,
-                max_hp=0,
-                ad=15,
-                armor=0,
-                evasion_rating=0,
-                accuracy=0,
-                crit_chance=0.10,
-                crit_multiplier=0.2,
-            ),
-            slot=EquipmentSlot.WEAPON,
-            price=60,
-        ),
-        Item(
-            "Bärenpanzer",
-            Rarity.UNCOMMON,
-            Stats(
-                hp=30,
-                max_hp=30,
-                ad=0,
-                armor=15,
-                evasion_rating=0,
-                accuracy=0,
-                crit_chance=0.0,
-                crit_multiplier=0.0,
-            ),
-            slot=EquipmentSlot.CHESTPLATE,
-            price=45,
-        ),
-        Item(
-            "Mittlerer Heiltrank",
-            Rarity.COMMON,
-            Stats(
-                hp=0,
-                max_hp=0,
-                ad=0,
-                armor=0,
-                evasion_rating=0,
-                accuracy=0,
-                crit_chance=0.0,
-                crit_multiplier=0.0,
-            ),
-            is_consumable=True,
-            heal_amount=50,
-            price=20,
-        ),
-    ]
+    engine.shop_items = generate_shop_inventory(count=6)
 
     shop_pos = generator.find_free_tile(game_map)
     engine.game_map.set_tile(shop_pos.x, shop_pos.y, TileType.SHOP)
@@ -263,8 +115,14 @@ def main() -> None:
                     pygame.draw.rect(screen, (50, 50, 50), rect, 1)
                 elif tile == TileType.ENEMY:
                     pygame.draw.rect(screen, (200, 0, 0), rect)
+                elif tile == TileType.BOSS:
+                    pygame.draw.rect(screen, (150, 0, 150), rect)
                 elif tile == TileType.SHOP:
                     pygame.draw.rect(screen, (0, 0, 200), rect)
+                elif tile == TileType.CHEST:
+                    pygame.draw.rect(screen, (255, 215, 0), rect)
+                elif tile == TileType.LOCKED_CHEST:
+                    pygame.draw.rect(screen, (255, 100, 0), rect)
 
         player_rect = pygame.Rect(
             engine.player_pos.x * TILE_SIZE,
@@ -452,7 +310,6 @@ def main() -> None:
                         )
 
         if state.show_shop:
-            # Vergrößertes Shop-Overlay (Größe auf 600x480 erhöht, damit mehr Platz ist)
             overlay = pygame.Surface((600, 480))
             overlay.set_alpha(245)
             overlay.fill((20, 20, 50))
@@ -527,11 +384,9 @@ def main() -> None:
                         f"Preis: {price_val} G", True, price_color
                     )
 
-                    # Kompakterer Abstand (30 Pixel statt 35), damit viele Items reinpassen
                     screen.blit(item_text, (130, 165 + i * 30))
                     screen.blit(price_text, (530, 165 + i * 30))
 
-                # Die Detail-Box weiter nach unten verschoben (Y=370), damit sich nichts überschneidet
                 pygame.draw.line(
                     screen, (100, 100, 255), (130, 360), (670, 360), 2
                 )
@@ -637,7 +492,6 @@ def main() -> None:
         pygame.display.flip()
 
     def combat_callback(enemy: Character) -> None:
-        """Rückruffunktion für die Spiel-Engine. Pausiert das Spiel künstlich während Kämpfen."""
         draw_scene(current_enemy=enemy)
         pygame.event.pump()
         pygame.time.delay(800)
@@ -678,46 +532,48 @@ def main() -> None:
                         state.shop_selection = 0
                     elif event.key in (pygame.K_w, pygame.K_UP):
                         state.shop_selection = max(0, state.shop_selection - 1)
-                    elif event.key in (pygame.K_s, pygame.K_DOWN):
-                        if active_list:
-                            state.shop_selection = min(
-                                len(active_list) - 1, state.shop_selection + 1
-                            )
-                    elif event.key in (pygame.K_e, pygame.K_RETURN):
-                        if active_list:
-                            selected_item = active_list[state.shop_selection]
+                    elif (
+                        event.key in (pygame.K_s, pygame.K_DOWN) and active_list
+                    ):
+                        state.shop_selection = min(
+                            len(active_list) - 1, state.shop_selection + 1
+                        )
+                    elif (
+                        event.key in (pygame.K_e, pygame.K_RETURN)
+                        and active_list
+                    ):
+                        selected_item = active_list[state.shop_selection]
 
-                            if state.shop_mode == "buy":
-                                if engine.player.gold >= selected_item.price:
-                                    engine.player.gold -= selected_item.price
-                                    engine.player.items.append(selected_item)
-                                    engine.shop_items.pop(state.shop_selection)
-
-                                    if (
-                                        state.shop_selection
-                                        >= len(engine.shop_items)
-                                        and state.shop_selection > 0
-                                    ):
-                                        state.shop_selection -= 1
-
-                            elif state.shop_mode == "sell":
-                                equipped_keys = [
-                                    k
-                                    for k, v in engine.player.equipment.items()
-                                    if v == selected_item
-                                ]
-                                for k in equipped_keys:
-                                    engine.player.equipment[k] = None
-
-                                engine.player.gold += selected_item.price // 2
-                                engine.player.items.pop(state.shop_selection)
+                        if state.shop_mode == "buy":
+                            if engine.player.gold >= selected_item.price:
+                                engine.player.gold -= selected_item.price
+                                engine.player.items.append(selected_item)
+                                engine.shop_items.pop(state.shop_selection)
 
                                 if (
                                     state.shop_selection
-                                    >= len(engine.player.items)
+                                    >= len(engine.shop_items)
                                     and state.shop_selection > 0
                                 ):
                                     state.shop_selection -= 1
+
+                        elif state.shop_mode == "sell":
+                            equipped_keys = [
+                                k
+                                for k, v in engine.player.equipment.items()
+                                if v == selected_item
+                            ]
+                            for k in equipped_keys:
+                                engine.player.equipment[k] = None
+
+                            engine.player.gold += selected_item.price // 2
+                            engine.player.items.pop(state.shop_selection)
+
+                            if (
+                                state.shop_selection >= len(engine.player.items)
+                                and state.shop_selection > 0
+                            ):
+                                state.shop_selection -= 1
 
                     elif event.key in (pygame.K_q, pygame.K_ESCAPE):
                         state.show_shop = False
@@ -725,12 +581,14 @@ def main() -> None:
                 elif state.show_inventory:
                     if event.key in (pygame.K_w, pygame.K_UP):
                         state.inv_selection = max(0, state.inv_selection - 1)
-                    elif event.key in (pygame.K_s, pygame.K_DOWN):
-                        if engine.player.items:
-                            state.inv_selection = min(
-                                len(engine.player.items) - 1,
-                                state.inv_selection + 1,
-                            )
+                    elif (
+                        event.key in (pygame.K_s, pygame.K_DOWN)
+                        and engine.player.items
+                    ):
+                        state.inv_selection = min(
+                            len(engine.player.items) - 1,
+                            state.inv_selection + 1,
+                        )
                     elif (
                         event.key in (pygame.K_e, pygame.K_RETURN)
                         and engine.player.items
