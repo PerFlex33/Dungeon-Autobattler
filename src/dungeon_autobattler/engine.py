@@ -43,18 +43,12 @@ class Position:
     y: int
 
     def __add__(self, other: "Position") -> "Position":
-        """Erlaubt die einfache Addition zweier Positionen."""
         return Position(self.x + other.x, self.y + other.y)
 
 
 class GameMap:
     """
-    Verwaltet das Grid und die Kollisionen des Dungeons.
-
-    Attributes:
-        width: Breite der Map in Kacheln.
-        height: Höhe der Map in Kacheln.
-        tiles: 2D-Liste der TileTypes, welche die Level-Struktur bilden.
+    Verwaltet das Grid und die Kollisionen eines Dungeons (Chunk).
     """
 
     def __init__(self, width: int, height: int) -> None:
@@ -65,50 +59,46 @@ class GameMap:
         ]
 
     def is_walkable(self, pos: Position) -> bool:
-        """Prüft, ob eine Position innerhalb der Karte liegt und kein Hindernis ist."""
         if not (0 <= pos.x < self.width and 0 <= pos.y < self.height):
             return False
         return self.tiles[pos.y][pos.x] != TileType.WALL
 
     def set_tile(self, x: int, y: int, tile_type: TileType) -> None:
-        """Setzt einen spezifischen Kachel-Typ an einer Position."""
         if 0 <= x < self.width and 0 <= y < self.height:
             self.tiles[y][x] = tile_type
 
 
 class Engine:
     """
-    Hauptspiel-Engine, die den Spielzustand, die Entitäten und deren Interaktionen verbindet.
-
-    Attributes:
-        player: Das Character-Objekt des Spielers.
-        game_map: Die Instanz der aktuellen Dungeon-Karte.
-        player_pos: Aktuelle Position des Spielers auf der Map.
-        difficulty: Allgemeiner Multiplikator für die Gegnerskalierung.
-        enemies: Dictionary mit Positionen als Key und Gegner-Objekten als Value.
-        shop_items: Liste der aktuell im Shop verfügbaren Items.
-        combat_log: Historie der letzten Kampfereignisse als Strings.
+    Hauptspiel-Engine, die nun mit einer Macro-Welt (Grid aus Chunks) arbeitet.
     """
 
     def __init__(
         self,
         player: Character,
-        game_map: GameMap,
+        world_chunks: list[list[GameMap]],
+        start_chunk_x: int,
+        start_chunk_y: int,
         start_pos: Position,
         difficulty: float = 1.0,
     ) -> None:
         self.player = player
-        self.game_map = game_map
+        self.world_chunks = world_chunks
+        self.chunk_x = start_chunk_x
+        self.chunk_y = start_chunk_y
+        self.game_map = world_chunks[start_chunk_y][start_chunk_x]
         self.player_pos = start_pos
         self.difficulty = difficulty
-        self.enemies: dict[tuple[int, int], Character] = {}
+        self.enemies: dict[tuple[int, int, int, int], Character] = {}
         self.shop_items: list[Item] = []
         self.combat_log: list[str] = []
 
-    def spawn_enemy(self, x: int, y: int, enemy: Character) -> None:
-        """Platziert einen Gegner auf der Map an der angegebenen Koordinate."""
-        self.game_map.set_tile(x, y, TileType.ENEMY)
-        self.enemies[(x, y)] = enemy
+    def spawn_enemy(
+        self, cx: int, cy: int, x: int, y: int, enemy: Character
+    ) -> None:
+        """Platziert einen Gegner im globalen Grid."""
+        self.world_chunks[cy][cx].set_tile(x, y, TileType.ENEMY)
+        self.enemies[(cx, cy, x, y)] = enemy
 
     def move_player(
         self,
@@ -117,7 +107,7 @@ class Engine:
         ui_callback: Callable[[Character], None] | None = None,
     ) -> bool:
         """
-        Verarbeitet die Fortbewegung des Spielers und behandelt Kollisionen mit Entitäten (Gegner, Exit).
+        Verarbeitet die Fortbewegung und wechselt die Chunks an den Rändern der Map.
         """
         if abs(dx) > 1 or abs(dy) > 1:
             raise InvalidMoveError("Spieler kann nur maximal 1 Feld ziehen.")
@@ -125,18 +115,54 @@ class Engine:
             return True
 
         new_pos = self.player_pos + Position(dx, dy)
+        chunk_dx, chunk_dy = 0, 0
+
+        # Out-of-bounds Check für Chunk-Transition
+        if new_pos.x < 0:
+            chunk_dx = -1
+            new_pos.x = self.game_map.width - 1
+        elif new_pos.x >= self.game_map.width:
+            chunk_dx = 1
+            new_pos.x = 0
+        elif new_pos.y < 0:
+            chunk_dy = -1
+            new_pos.y = self.game_map.height - 1
+        elif new_pos.y >= self.game_map.height:
+            chunk_dy = 1
+            new_pos.y = 0
+
+        if chunk_dx != 0 or chunk_dy != 0:
+            new_cx = self.chunk_x + chunk_dx
+            new_cy = self.chunk_y + chunk_dy
+
+            if not (
+                0 <= new_cx < len(self.world_chunks[0])
+                and 0 <= new_cy < len(self.world_chunks)
+            ):
+                return False
+
+            if not self.world_chunks[new_cy][new_cx].is_walkable(new_pos):
+                return False
+
+            self.chunk_x = new_cx
+            self.chunk_y = new_cy
+            self.game_map = self.world_chunks[new_cy][new_cx]
+            self.player_pos = new_pos
+            return True
+
         if self.game_map.is_walkable(new_pos):
             tile = self.game_map.tiles[new_pos.y][new_pos.x]
 
             if tile in (TileType.ENEMY, TileType.BOSS):
-                enemy = self.enemies.get((new_pos.x, new_pos.y))
+                enemy = self.enemies.get(
+                    (self.chunk_x, self.chunk_y, new_pos.x, new_pos.y)
+                )
                 if enemy:
                     won = self.resolve_combat(enemy, ui_callback)
                     if won:
                         self.player.gold += enemy.gold
                         self.player.gain_xp(25)
 
-                        # Boss droppt garantierten Schlüssel
                         if tile == TileType.BOSS:
                             boss_key = Item(
                                 name="Boss-Schlüssel",
@@ -159,7 +185,9 @@ class Engine:
                         self.game_map.set_tile(
                             new_pos.x, new_pos.y, TileType.EMPTY
                         )
-                        del self.enemies[(new_pos.x, new_pos.y)]
+                        del self.enemies[
+                            (self.chunk_x, self.chunk_y, new_pos.x, new_pos.y)
+                        ]
                         self.player_pos = new_pos
                         return True
                     return False
@@ -195,7 +223,6 @@ class Engine:
                     ),
                     None,
                 )
-
                 if key_item:
                     self.player.items.remove(key_item)
                     from dungeon_autobattler.item_factory import (
@@ -206,7 +233,6 @@ class Engine:
                         forced_rarity=Rarity.EPIC
                     )
                     self.player.items.append(epic_loot)
-
                     self.player.gold += 150
                     self.combat_log.append(
                         f"Boss-Schlüssel benutzt! 150 Gold & {epic_loot.name} erbeutet."
@@ -238,7 +264,6 @@ class Engine:
         enemy: Character,
         ui_callback: Callable[[Character], None] | None = None,
     ) -> bool:
-        """Führt einen automatisierten Kampf Schritt für Schritt durch, bis eine Partei stirbt."""
         if not self.player.is_alive():
             raise DungeonError("Ein toter Spieler kann nicht kämpfen.")
         if not enemy.is_alive():
@@ -252,10 +277,8 @@ class Engine:
             self._execute_attack(self.player, enemy)
             if ui_callback:
                 ui_callback(enemy)
-
             if not enemy.is_alive():
                 break
-
             self._execute_attack(enemy, self.player)
             if ui_callback:
                 ui_callback(enemy)
@@ -263,7 +286,6 @@ class Engine:
         return self.player.is_alive()
 
     def _execute_attack(self, attacker: Character, defender: Character) -> None:
-        """Berechnet intern den Schaden eines Angriffs und aktualisiert die Logs."""
         att = attacker.current_stats
         deff = defender.current_stats
 
@@ -273,7 +295,6 @@ class Engine:
             if (att.accuracy + evasion_term) > 0
             else 1.0
         )
-
         hit_chance = max(0.05, min(1.0, hit_chance))
 
         if random.random() > hit_chance:
@@ -289,7 +310,6 @@ class Engine:
         damage_reduction = 0.0
         if (deff.armor + 5.0 * raw_damage) > 0:
             damage_reduction = deff.armor / (deff.armor + 5.0 * raw_damage)
-
         damage_reduction = min(0.90, damage_reduction)
 
         actual_damage = max(1, int(raw_damage * (1.0 - damage_reduction)))
@@ -301,20 +321,34 @@ class Engine:
         )
 
     def save_game(self, filepath: str) -> None:
-        """Serialisiert den aktuellen Spielzustand und schreibt ihn in eine JSON-Datei."""
+        chunks_data = []
+        for cy, row in enumerate(self.world_chunks):
+            row_data = []
+            for cx, chunk in enumerate(row):
+                row_data.append(
+                    {
+                        "width": chunk.width,
+                        "height": chunk.height,
+                        "tiles": [[t.value for t in r] for r in chunk.tiles],
+                    }
+                )
+            chunks_data.append(row_data)
+
         data = {
             "player": asdict(self.player),
+            "chunk_x": self.chunk_x,
+            "chunk_y": self.chunk_y,
             "player_pos": asdict(self.player_pos),
             "difficulty": self.difficulty,
-            "map": {
-                "width": self.game_map.width,
-                "height": self.game_map.height,
-                "tiles": [
-                    [t.value for t in row] for row in self.game_map.tiles
-                ],
-            },
+            "world_chunks": chunks_data,
             "enemies": [
-                {"x": pos[0], "y": pos[1], "data": asdict(enemy)}
+                {
+                    "cx": pos[0],
+                    "cy": pos[1],
+                    "x": pos[2],
+                    "y": pos[3],
+                    "data": asdict(enemy),
+                }
                 for pos, enemy in self.enemies.items()
             ],
         }
@@ -326,14 +360,12 @@ class Engine:
 
     @classmethod
     def load_game(cls, filepath: str) -> "Engine":
-        """Lädt einen Spielzustand aus einer JSON-Datei und rekonstruiert alle Objekte."""
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
             p_data = data["player"]
             p_stats = Stats(**p_data["base_stats"])
-
             player = Character(
                 name=p_data["name"],
                 base_stats=p_stats,
@@ -371,15 +403,23 @@ class Engine:
                             price=i_data.get("price", 20),
                         )
 
-            m_data = data["map"]
-            g_map = GameMap(m_data["width"], m_data["height"])
-            g_map.tiles = [
-                [TileType(t) for t in row] for row in m_data["tiles"]
-            ]
+            m_data = data["world_chunks"]
+            world_chunks = []
+            for row_data in m_data:
+                row_chunks = []
+                for c_data in row_data:
+                    g_map = GameMap(c_data["width"], c_data["height"])
+                    g_map.tiles = [
+                        [TileType(t) for t in r] for r in c_data["tiles"]
+                    ]
+                    row_chunks.append(g_map)
+                world_chunks.append(row_chunks)
 
             pos = Position(**data["player_pos"])
+            c_x = data["chunk_x"]
+            c_y = data["chunk_y"]
             difficulty = data.get("difficulty", 1.0)
-            engine = cls(player, g_map, pos, difficulty)
+            engine = cls(player, world_chunks, c_x, c_y, pos, difficulty)
 
             from dungeon_autobattler.models import Enemy, EnemyType
 
@@ -400,7 +440,9 @@ class Engine:
                     else EnemyType.GOBLIN,
                     loot_value=e_data.get("loot_value", 1.0),
                 )
-                engine.enemies[(e_entry["x"], e_entry["y"])] = enemy
+                engine.enemies[
+                    (e_entry["cx"], e_entry["cy"], e_entry["x"], e_entry["y"])
+                ] = enemy
 
             return engine
         except (OSError, json.JSONDecodeError, KeyError, ValueError) as e:

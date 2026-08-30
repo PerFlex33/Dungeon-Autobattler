@@ -18,17 +18,16 @@ def engine() -> Engine:
     stats = Stats(hp=100, max_hp=100, ad=10, armor=5)
     player = Character(name="Held", base_stats=stats, items=[])
     game_map = GameMap(width=10, height=10)
-    return Engine(player, game_map, Position(1, 1))
+    # 1x1 Chunk-Welt für den Test übergeben
+    return Engine(player, [[game_map]], 0, 0, Position(1, 1))
 
 
 def test_stats_validation() -> None:
-    # Negative max_hp
     with pytest.raises(
         ValueError, match="Maximale HP dürfen nicht negativ sein"
     ):
         Stats(hp=10, max_hp=-1, ad=1)
 
-    # Negative ad oder andere Stats
     with pytest.raises(
         ValueError, match="Basis-Werte dürfen nicht negativ sein"
     ):
@@ -39,7 +38,6 @@ def test_stats_validation() -> None:
     ):
         Stats(hp=10, max_hp=10, ad=10, evasion_rating=-10)
 
-    # HP capping
     s = Stats(hp=200, max_hp=100, ad=10)
     assert s.hp == 100
 
@@ -50,7 +48,6 @@ def test_item_bonus_consistency() -> None:
     item = Item("Test Item", Rarity.COMMON, item_stats)
 
     char = Character("Hero", base_stats=base, items=[])
-    # Item ausrüsten, damit die Stats wirken!
     char.equipment["chestplate"] = item
 
     curr = char.current_stats
@@ -59,7 +56,6 @@ def test_item_bonus_consistency() -> None:
     assert curr.ad == 15
     assert curr.armor == 10
 
-    # take_damage wendet nun direkt den berechneten Schaden an
     char.take_damage(20)
     assert char.base_stats.hp == 30
     assert char.current_stats.hp == 50

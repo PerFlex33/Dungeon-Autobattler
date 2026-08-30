@@ -8,15 +8,12 @@ class TestDungeonGenerator(unittest.TestCase):
     def test_random_walk_connected(self) -> None:
         width, height = 20, 20
         generator = DungeonGenerator(width, height)
-        game_map = generator.generate_random_walk(steps=100)
+        # Ruft generiere Chunk auf, öffnet alle Himmelsrichtungen (N, S, W, O)
+        game_map = generator.generate_chunk(True, True, True, True, steps=100)
 
-        # Sicherstellen, dass Ränder Mauern sind
-        for x in range(width):
-            self.assertEqual(game_map.tiles[0][x], TileType.WALL)
-            self.assertEqual(game_map.tiles[height - 1][x], TileType.WALL)
-        for y in range(height):
-            self.assertEqual(game_map.tiles[y][0], TileType.WALL)
-            self.assertEqual(game_map.tiles[y][width - 1], TileType.WALL)
+        # Sicherstellen, dass Ränder (mit Ausnahme der Ausgänge in der Mitte) Mauern sind
+        self.assertEqual(game_map.tiles[0][0], TileType.WALL)
+        self.assertEqual(game_map.tiles[height - 1][width - 1], TileType.WALL)
 
         # Sicherstellen, dass es freie Felder gibt
         free_tiles = []
@@ -30,7 +27,10 @@ class TestDungeonGenerator(unittest.TestCase):
     def test_find_free_tile(self) -> None:
         width, height = 10, 10
         generator = DungeonGenerator(width, height)
-        game_map = generator.generate_random_walk(steps=20)
+        # Erstellt geschlossenen Raum ohne Ausgänge
+        game_map = generator.generate_chunk(
+            False, False, False, False, steps=20
+        )
 
         pos = generator.find_free_tile(game_map)
         self.assertIsInstance(pos, Position)

@@ -46,13 +46,25 @@ def main() -> None:
     """Initialisiert Pygame und startet den Main-Loop."""
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("Dungeon Autobattler")
+    pygame.display.set_caption("Dungeon Autobattler - Macro World")
     clock = pygame.time.Clock()
 
     map_width = SCREEN_WIDTH // TILE_SIZE
     map_height = SCREEN_HEIGHT // TILE_SIZE
+
     generator = DungeonGenerator(map_width, map_height)
-    game_map = generator.generate_random_walk(steps=300)
+    macro_grid = generator.generate_macro_grid(8, 8)
+
+    world_chunks = []
+    for cy in range(8):
+        row = []
+        for cx in range(8):
+            layout = macro_grid[cy][cx]
+            chunk = generator.generate_chunk(
+                layout["N"], layout["S"], layout["W"], layout["E"], steps=200
+            )
+            row.append(chunk)
+        world_chunks.append(row)
 
     player_stats = Stats(hp=80, max_hp=100, ad=10, armor=5)
 
@@ -64,23 +76,33 @@ def main() -> None:
     )
     player.gold = 50
 
-    start_pos = generator.find_free_tile(game_map)
-    engine = Engine(player, game_map, start_pos, difficulty=1.2)
+    start_cx, start_cy = 0, 0
+    start_map = world_chunks[start_cy][start_cx]
+    start_pos = generator.find_free_tile(start_map)
+
+    engine = Engine(
+        player, world_chunks, start_cx, start_cy, start_pos, difficulty=1.2
+    )
 
     enemy_types = list(EnemyType)
-    for _ in range(7):
+    for _ in range(40):
+        ecx, ecy = random.randint(0, 7), random.randint(0, 7)
+        enemy_pos = generator.find_free_tile(world_chunks[ecy][ecx])
         enemy_type = random.choice(enemy_types)
-        enemy_pos = generator.find_free_tile(game_map)
         engine.spawn_enemy(
+            ecx,
+            ecy,
             enemy_pos.x,
             enemy_pos.y,
             create_enemy(enemy_type, difficulty_multiplier=engine.difficulty),
         )
 
     engine.shop_items = generate_shop_inventory(count=6)
-
-    shop_pos = generator.find_free_tile(game_map)
-    engine.game_map.set_tile(shop_pos.x, shop_pos.y, TileType.SHOP)
+    shop_cx, shop_cy = random.randint(0, 7), random.randint(0, 7)
+    shop_pos = generator.find_free_tile(world_chunks[shop_cy][shop_cx])
+    world_chunks[shop_cy][shop_cx].set_tile(
+        shop_pos.x, shop_pos.y, TileType.SHOP
+    )
 
     font = pygame.font.SysFont("Arial", 24)
     small_font = pygame.font.SysFont("Arial", 18)
@@ -115,7 +137,9 @@ def main() -> None:
                 elif tile == TileType.EMPTY:
                     pygame.draw.rect(screen, (50, 50, 50), rect, 1)
                 elif tile == TileType.ENEMY:
-                    enemy = engine.enemies.get((x, y))
+                    enemy = engine.enemies.get(
+                        (engine.chunk_x, engine.chunk_y, x, y)
+                    )
                     if isinstance(enemy, Enemy):
                         enemy_colors = {
                             EnemyType.GOBLIN: (34, 139, 34),
@@ -171,9 +195,15 @@ def main() -> None:
             True,
             (0, 255, 255),
         )
+        chunk_text = small_font.render(
+            f"Map-Abschnitt: [{engine.chunk_x}, {engine.chunk_y}]",
+            True,
+            (150, 150, 150),
+        )
         screen.blit(gold_text, (10, 10))
         screen.blit(hp_text, (10, 40))
         screen.blit(lvl_text, (10, 70))
+        screen.blit(chunk_text, (SCREEN_WIDTH - 180, 10))
 
         if (
             not state.show_shop

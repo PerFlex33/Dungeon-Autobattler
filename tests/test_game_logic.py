@@ -26,22 +26,20 @@ def game_map() -> GameMap:
 
 @pytest.fixture
 def engine(player: Character, game_map: GameMap) -> Engine:
-    return Engine(player, game_map, Position(1, 1))
+    # 1x1 Chunk-Welt für den Test
+    return Engine(player, [[game_map]], 0, 0, Position(1, 1))
 
 
 def test_character_take_damage(player: Character) -> None:
-    # take_damage zieht nach der neuen Logik einfach den übergebenen finalen Schaden ab
     player.take_damage(5)
     assert player.base_stats.hp == 95
 
-    # massive damage
     player.take_damage(200)
     assert player.base_stats.hp == 0
     assert not player.is_alive()
 
 
 def test_character_level_up(player: Character) -> None:
-    # xp_needed = level * 50 = 50
     leveled_up = player.gain_xp(50)
     assert leveled_up is True
     assert player.level == 2
@@ -50,23 +48,20 @@ def test_character_level_up(player: Character) -> None:
 
 
 def test_engine_movement(engine: Engine) -> None:
-    # Normal move
     assert engine.move_player(1, 0) is True
     assert engine.player_pos == Position(2, 1)
 
-    # Wall collision
     engine.game_map.set_tile(3, 1, TileType.WALL)
     assert engine.move_player(1, 0) is False
     assert engine.player_pos == Position(2, 1)
 
-    # Boundary check
+    # Boundary check (wird in Macro-World behandelt, aber für einzelne Map = False)
     engine.player_pos = Position(0, 0)
     assert engine.move_player(-1, 0) is False
 
 
 @patch("random.random", return_value=0.5)
 def test_resolve_combat(mock_random: MagicMock, engine: Engine) -> None:
-    # return_value=0.5 zwingt random.random() auf 0.5 -> kein Ausweichen, keine Crits
     enemy_stats = Stats(hp=20, max_hp=20, ad=8, armor=0)
     enemy = Character("Weak Goblin", enemy_stats, [])
 
@@ -80,14 +75,14 @@ def test_resolve_combat(mock_random: MagicMock, engine: Engine) -> None:
 def test_combat_trigger_on_move(mock_random: MagicMock, engine: Engine) -> None:
     enemy_stats = Stats(hp=10, max_hp=10, ad=5, armor=0)
     enemy = Character("Small Rat", enemy_stats, [], gold=15)
-    engine.spawn_enemy(2, 1, enemy)
+    # Globale Koordinate: Chunk 0, 0 und Position 2, 1
+    engine.spawn_enemy(0, 0, 2, 1, enemy)
 
-    # Move onto enemy tile
     success = engine.move_player(1, 0)
     assert success is True
     assert engine.player_pos == Position(2, 1)
     assert engine.player.gold == 15
-    assert (2, 1) not in engine.enemies
+    assert (0, 0, 2, 1) not in engine.enemies
     assert engine.game_map.tiles[1][2] == TileType.EMPTY
 
 

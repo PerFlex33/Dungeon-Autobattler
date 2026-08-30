@@ -5,47 +5,81 @@ from dungeon_autobattler.engine import GameMap, Position, TileType
 
 class DungeonGenerator:
     """
-    Klasse zur prozeduralen Generierung von Dungeons.
+    Klasse zur prozeduralen Generierung von Dungeons und Makro-Welten.
     """
 
     def __init__(self, width: int, height: int):
         self.width = width
         self.height = height
 
-    def generate(self, wall_density: float = 0.3) -> GameMap:
+    def generate_macro_grid(
+        self, width_chunks: int = 8, height_chunks: int = 8
+    ) -> list[list[dict[str, bool]]]:
         """
-        Generiert eine Map mit zufälligen Wänden.
-        Stellt sicher, dass die Ränder Mauern sind.
+        Generiert einen Spanning-Tree über das Grid, um sicherzustellen,
+        dass alle Chunks lückenlos miteinander verbunden und erreichbar sind.
         """
-        game_map = GameMap(self.width, self.height)
+        grid = [
+            {"N": False, "S": False, "E": False, "W": False, "visited": False}
+            for _ in range(width_chunks * height_chunks)
+        ]
 
-        # Zuerst alles mit Boden füllen (ist Standard in GameMap)
-        # Dann zufällig Wände setzen
-        for y in range(self.height):
-            for x in range(self.width):
-                # Ränder sind immer Wände
+        def get_idx(x: int, y: int) -> int:
+            return y * width_chunks + x
+
+        stack = [(0, 0)]
+        grid[get_idx(0, 0)]["visited"] = True
+
+        while stack:
+            cx, cy = stack[-1]
+            unvisited_neighbors = []
+            directions = [
+                ("N", 0, -1, "S"),
+                ("S", 0, 1, "N"),
+                ("W", -1, 0, "E"),
+                ("E", 1, 0, "W"),
+            ]
+
+            for d, dx, dy, op in directions:
+                nx, ny = cx + dx, cy + dy
                 if (
-                    x == 0
-                    or y == 0
-                    or x == self.width - 1
-                    or y == self.height - 1
-                    or random.random() < wall_density
+                    0 <= nx < width_chunks
+                    and 0 <= ny < height_chunks
+                    and not grid[get_idx(nx, ny)]["visited"]
                 ):
-                    game_map.set_tile(x, y, TileType.WALL)
+                    unvisited_neighbors.append((d, nx, ny, op))
 
-        return game_map
+            if unvisited_neighbors:
+                d, nx, ny, op = random.choice(unvisited_neighbors)
+                grid[get_idx(cx, cy)][d] = True
+                grid[get_idx(nx, ny)][op] = True
+                grid[get_idx(nx, ny)]["visited"] = True
+                stack.append((nx, ny))
+            else:
+                stack.pop()
 
-    def generate_random_walk(self, steps: int = 200) -> GameMap:
+        return [
+            [grid[get_idx(x, y)] for x in range(width_chunks)]
+            for y in range(height_chunks)
+        ]
+
+    def generate_chunk(
+        self,
+        open_n: bool,
+        open_s: bool,
+        open_w: bool,
+        open_e: bool,
+        steps: int = 200,
+    ) -> GameMap:
         """
-        Generiert eine Map mittels Random Walk, um sicherzustellen, dass Wege verbunden sind.
+        Generiert einen einzelnen Chunk und bricht Wege zu den offenen Himmelsrichtungen durch.
         """
         game_map = GameMap(self.width, self.height)
-        # Alles als Wand initialisieren
+
         for y in range(self.height):
             for x in range(self.width):
                 game_map.set_tile(x, y, TileType.WALL)
 
-        # Startpunkt
         x, y = self.width // 2, self.height // 2
         game_map.set_tile(x, y, TileType.EMPTY)
 
@@ -56,6 +90,21 @@ class DungeonGenerator:
             if 1 <= new_x < self.width - 1 and 1 <= new_y < self.height - 1:
                 x, y = new_x, new_y
                 game_map.set_tile(x, y, TileType.EMPTY)
+
+        mid_x, mid_y = self.width // 2, self.height // 2
+
+        if open_n:
+            for ty in range(mid_y, -1, -1):
+                game_map.set_tile(mid_x, ty, TileType.EMPTY)
+        if open_s:
+            for ty in range(mid_y, self.height):
+                game_map.set_tile(mid_x, ty, TileType.EMPTY)
+        if open_w:
+            for tx in range(mid_x, -1, -1):
+                game_map.set_tile(tx, mid_y, TileType.EMPTY)
+        if open_e:
+            for tx in range(mid_x, self.width):
+                game_map.set_tile(tx, mid_y, TileType.EMPTY)
 
         return game_map
 
@@ -68,7 +117,6 @@ class DungeonGenerator:
                     free_tiles.append(Position(x, y))
 
         if not free_tiles:
-            # Fallback: Mitte erzwingen
             mid_x, mid_y = game_map.width // 2, game_map.height // 2
             game_map.set_tile(mid_x, mid_y, TileType.EMPTY)
             return Position(mid_x, mid_y)
