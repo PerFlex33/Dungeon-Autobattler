@@ -92,6 +92,7 @@ class Engine:
         self.enemies: dict[tuple[int, int, int, int], Character] = {}
         self.shop_items: list[Item] = []
         self.combat_log: list[str] = []
+        self.game_won: bool = False
 
     def spawn_enemy(
         self, cx: int, cy: int, x: int, y: int, enemy: Character
@@ -117,7 +118,6 @@ class Engine:
         new_pos = self.player_pos + Position(dx, dy)
         chunk_dx, chunk_dy = 0, 0
 
-        # Out-of-bounds Check für Chunk-Transition
         if new_pos.x < 0:
             chunk_dx = -1
             new_pos.x = self.game_map.width - 1
@@ -164,22 +164,9 @@ class Engine:
                         self.player.gain_xp(25)
 
                         if tile == TileType.BOSS:
-                            boss_key = Item(
-                                name="Boss-Schlüssel",
-                                rarity=Rarity.EPIC,
-                                bonus_stats=Stats(
-                                    hp=0,
-                                    max_hp=0,
-                                    ad=0,
-                                    armor=0,
-                                    evasion_rating=0,
-                                    accuracy=0,
-                                ),
-                                price=0,
-                            )
-                            self.player.items.append(boss_key)
+                            self.game_won = True
                             self.combat_log.append(
-                                "Boss besiegt! Boss-Schlüssel erbeutet."
+                                "Boss besiegt! DU HAST GEWONNEN!"
                             )
 
                         self.game_map.set_tile(
@@ -247,11 +234,6 @@ class Engine:
                     return False
 
             elif tile == TileType.SHOP:
-                self.player_pos = new_pos
-                return True
-
-            elif tile == TileType.EXIT:
-                print("Sieg! Du hast den Ausgang erreicht.")
                 self.player_pos = new_pos
                 return True
 
@@ -341,6 +323,7 @@ class Engine:
             "player_pos": asdict(self.player_pos),
             "difficulty": self.difficulty,
             "world_chunks": chunks_data,
+            "game_won": getattr(self, "game_won", False),
             "enemies": [
                 {
                     "cx": pos[0],
@@ -420,6 +403,7 @@ class Engine:
             c_y = data["chunk_y"]
             difficulty = data.get("difficulty", 1.0)
             engine = cls(player, world_chunks, c_x, c_y, pos, difficulty)
+            engine.game_won = data.get("game_won", False)
 
             from dungeon_autobattler.models import Enemy, EnemyType
 

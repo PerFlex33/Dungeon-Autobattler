@@ -97,6 +97,18 @@ def main() -> None:
             create_enemy(enemy_type, difficulty_multiplier=engine.difficulty),
         )
 
+    boss_cx, boss_cy = random.randint(0, 7), random.randint(0, 7)
+    boss_map = world_chunks[boss_cy][boss_cx]
+    boss_pos = generator.find_free_tile(boss_map)
+
+    boss_enemy = create_enemy(EnemyType.DRAGON, difficulty_multiplier=2.5)
+    boss_enemy.name = "Endboss Drache"
+
+    engine.spawn_enemy(boss_cx, boss_cy, boss_pos.x, boss_pos.y, boss_enemy)
+    world_chunks[boss_cy][boss_cx].set_tile(
+        boss_pos.x, boss_pos.y, TileType.BOSS
+    )
+
     engine.shop_items = generate_shop_inventory(count=6)
     shop_cx, shop_cy = random.randint(0, 7), random.randint(0, 7)
     shop_pos = generator.find_free_tile(world_chunks[shop_cy][shop_cx])
@@ -545,6 +557,26 @@ def main() -> None:
                     (20, SCREEN_HEIGHT - 130 + i * 20),
                 )
 
+        if getattr(engine, "game_won", False):
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+            overlay.set_alpha(220)
+            overlay.fill((0, 0, 0))
+            screen.blit(overlay, (0, 0))
+
+            win_text = font.render(
+                "SIEG! Du hast den Dungeon gemeistert!", True, (255, 215, 0)
+            )
+            screen.blit(
+                win_text, (SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 - 20)
+            )
+
+            sub_text = small_font.render(
+                "Drücke ESCAPE zum Beenden", True, (255, 255, 255)
+            )
+            screen.blit(
+                sub_text, (SCREEN_WIDTH // 2 - 110, SCREEN_HEIGHT // 2 + 30)
+            )
+
         pygame.display.flip()
 
     def combat_callback(enemy: Character) -> None:
@@ -555,6 +587,14 @@ def main() -> None:
     running = True
     while running:
         for event in pygame.event.get():
+            if getattr(engine, "game_won", False):
+                if (
+                    event.type == pygame.KEYDOWN
+                    and event.key == pygame.K_ESCAPE
+                ):
+                    running = False
+                continue
+
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
