@@ -161,13 +161,28 @@ class Engine:
                     won = self.resolve_combat(enemy, ui_callback)
                     if won:
                         self.player.gold += enemy.gold
-                        self.player.gain_xp(25)
+                        self.player.gain_xp(enemy.xp)
 
                         if tile == TileType.BOSS:
                             self.game_won = True
                             self.combat_log.append(
                                 "Boss besiegt! DU HAST GEWONNEN!"
                             )
+                        else:
+                            # Basis-Chance 20% multipliziert mit dem loot_value des Gegners
+                            drop_chance = 0.20 * getattr(
+                                enemy, "loot_value", 1.0
+                            )
+                            if random.random() < drop_chance:
+                                from dungeon_autobattler.item_factory import (
+                                    generate_random_equipment,
+                                )
+
+                                loot_item = generate_random_equipment()
+                                self.player.items.append(loot_item)
+                                self.combat_log.append(
+                                    f"{enemy.name} lässt {loot_item.name} fallen!"
+                                )
 
                         self.game_map.set_tile(
                             new_pos.x, new_pos.y, TileType.EMPTY
