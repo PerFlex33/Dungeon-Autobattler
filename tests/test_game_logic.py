@@ -26,7 +26,6 @@ def game_map() -> GameMap:
 
 @pytest.fixture
 def engine(player: Character, game_map: GameMap) -> Engine:
-    # 1x1 Chunk-Welt für den Test
     return Engine(player, [[game_map]], 0, 0, Position(1, 1))
 
 
@@ -43,8 +42,9 @@ def test_character_level_up(player: Character) -> None:
     leveled_up = player.gain_xp(50)
     assert leveled_up is True
     assert player.level == 2
-    assert player.base_stats.max_hp == 120
-    assert player.base_stats.ad == 15
+    assert player.base_stats.max_hp == 105
+    assert player.base_stats.ad == 10
+    assert player.skill_points == 1
 
 
 def test_engine_movement(engine: Engine) -> None:
@@ -55,7 +55,6 @@ def test_engine_movement(engine: Engine) -> None:
     assert engine.move_player(1, 0) is False
     assert engine.player_pos == Position(2, 1)
 
-    # Boundary check (wird in Macro-World behandelt, aber für einzelne Map = False)
     engine.player_pos = Position(0, 0)
     assert engine.move_player(-1, 0) is False
 
@@ -75,7 +74,6 @@ def test_resolve_combat(mock_random: MagicMock, engine: Engine) -> None:
 def test_combat_trigger_on_move(mock_random: MagicMock, engine: Engine) -> None:
     enemy_stats = Stats(hp=10, max_hp=10, ad=5, armor=0)
     enemy = Character("Small Rat", enemy_stats, [], gold=15)
-    # Globale Koordinate: Chunk 0, 0 und Position 2, 1
     engine.spawn_enemy(0, 0, 2, 1, enemy)
 
     success = engine.move_player(1, 0)

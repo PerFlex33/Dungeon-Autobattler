@@ -1,7 +1,3 @@
-"""
-Kernlogik des Spiels inklusive Map-Verwaltung, Kampfabwicklung und Spielstandsverwaltung.
-"""
-
 import json
 import math
 import os
@@ -25,8 +21,6 @@ from dungeon_autobattler.models import (
 
 
 class EnumEncoder(json.JSONEncoder):
-    """Konvertiert Enums für die JSON-Speicherung in ihre primitiven Werte."""
-
     def default(self, o: Any) -> Any:
         if isinstance(o, Enum):
             return o.value
@@ -34,8 +28,6 @@ class EnumEncoder(json.JSONEncoder):
 
 
 class TileType(Enum):
-    """Typen von Feldern auf der Map."""
-
     EMPTY = "."
     WALL = "#"
     ENEMY = "E"
@@ -48,8 +40,6 @@ class TileType(Enum):
 
 @dataclass
 class Position:
-    """Repräsentiert eine zweidimensionale Koordinate auf der Map."""
-
     x: int
     y: int
 
@@ -58,10 +48,6 @@ class Position:
 
 
 class GameMap:
-    """
-    Verwaltet das Grid und die Kollisionen eines Dungeons (Chunk).
-    """
-
     def __init__(self, width: int, height: int) -> None:
         self.width = width
         self.height = height
@@ -80,10 +66,6 @@ class GameMap:
 
 
 class Engine:
-    """
-    Hauptspiel-Engine, die nun mit einer Macro-Welt (Grid aus Chunks) arbeitet.
-    """
-
     def __init__(
         self,
         player: Character,
@@ -108,7 +90,6 @@ class Engine:
     def spawn_enemy(
         self, cx: int, cy: int, x: int, y: int, enemy: Character
     ) -> None:
-        """Platziert einen Gegner im globalen Grid."""
         self.world_chunks[cy][cx].set_tile(x, y, TileType.ENEMY)
         self.enemies[(cx, cy, x, y)] = enemy
 
@@ -118,9 +99,6 @@ class Engine:
         dy: int,
         ui_callback: Callable[[Character], None] | None = None,
     ) -> bool:
-        """
-        Verarbeitet die Fortbewegung und wechselt die Chunks an den Rändern der Map.
-        """
         if abs(dx) > 1 or abs(dy) > 1:
             raise InvalidMoveError("Spieler kann nur maximal 1 Feld ziehen.")
         if dx == 0 and dy == 0:
@@ -180,7 +158,6 @@ class Engine:
                                 "Boss besiegt! DU HAST GEWONNEN!"
                             )
                         else:
-                            # Basis-Chance 20% multipliziert mit dem loot_value des Gegners
                             drop_chance = 0.20 * getattr(
                                 enemy, "loot_value", 1.0
                             )
@@ -395,6 +372,7 @@ class Engine:
                 gold=p_data.get("gold", 0),
                 xp=p_data.get("xp", 0),
                 level=p_data.get("level", 1),
+                skill_points=p_data.get("skill_points", 0),
             )
 
             if "equipment" in p_data:
@@ -460,12 +438,6 @@ class Engine:
 
     @staticmethod
     def delete_game(filepath: str) -> bool:
-        """
-        Löscht den angegebenen Spielstand vom Datenträger.
-
-        Returns:
-            True, wenn die Datei erfolgreich gelöscht wurde, False wenn sie nicht existiert.
-        """
         try:
             if os.path.exists(filepath):
                 os.remove(filepath)

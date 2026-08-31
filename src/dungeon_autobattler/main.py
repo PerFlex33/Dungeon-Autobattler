@@ -1,7 +1,3 @@
-"""
-Haupteinstiegspunkt für das Spiel mit Pygame-GUI.
-"""
-
 import random
 import sys
 from dataclasses import dataclass
@@ -32,18 +28,37 @@ FPS = 60
 
 
 @dataclass
-class UIState:
-    """Speichert den aktuellen Status der Benutzeroberfläche streng typisiert."""
+class SkillOption:
+    name: str
+    stat_name: str
+    is_float: bool
+    val_int: int = 0
+    val_float: float = 0.0
 
+
+SKILL_OPTIONS = [
+    SkillOption("Vitalität (+20 Max HP)", "hp", False, val_int=20),
+    SkillOption("Stärke (+5 Angriff)", "ad", False, val_int=5),
+    SkillOption("Eisenhaut (+3 Rüstung)", "armor", False, val_int=3),
+    SkillOption("Fokus (+5% Krit-Chance)", "crit_chance", True, val_float=0.05),
+    SkillOption(
+        "Leichtfuß (+10 Ausweichen)", "evasion_rating", False, val_int=10
+    ),
+]
+
+
+@dataclass
+class UIState:
     show_inventory: bool = False
     inv_selection: int = 0
     show_shop: bool = False
     shop_selection: int = 0
     shop_mode: str = "buy"
+    show_skills: bool = False
+    skill_selection: int = 0
 
 
 def main() -> None:
-    """Initialisiert Pygame und startet den Main-Loop."""
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Dungeon Autobattler - Macro World")
@@ -136,7 +151,6 @@ def main() -> None:
     slot_order = list(display_slots.keys())
 
     def draw_scene(current_enemy: Character | None = None) -> None:
-        """Rendert in jedem Frame die Karte, UI-Overlays, Shops und das dynamische Inventar."""
         screen.fill((30, 30, 30))
 
         for y, row in enumerate(engine.game_map.tiles):
@@ -557,6 +571,53 @@ def main() -> None:
                     (20, SCREEN_HEIGHT - 130 + i * 20),
                 )
 
+        if (
+            engine.player.skill_points > 0
+            and not state.show_skills
+            and not state.show_inventory
+            and not state.show_shop
+        ):
+            lvl_notice = font.render(
+                f"Level Up! {engine.player.skill_points} Punkt(e) verfügbar. [K] drücken",
+                True,
+                (0, 255, 0),
+            )
+            screen.blit(lvl_notice, (SCREEN_WIDTH // 2 - 180, 20))
+
+        if state.show_skills:
+            overlay = pygame.Surface((400, 300))
+            overlay.set_alpha(245)
+            overlay.fill((30, 50, 30))
+            screen.blit(overlay, (200, 150))
+            pygame.draw.rect(screen, (100, 255, 100), (200, 150, 400, 300), 3)
+
+            title = font.render(
+                f"Skills (Punkte: {engine.player.skill_points})",
+                True,
+                (255, 215, 0),
+            )
+            screen.blit(title, (220, 170))
+
+            nav_info = small_font.render(
+                "W/S: Wählen | E: Bestätigen | K: Schließen",
+                True,
+                (0, 255, 255),
+            )
+            screen.blit(nav_info, (220, 200))
+            pygame.draw.line(screen, (100, 255, 100), (220, 225), (580, 225), 2)
+
+            for i, skill in enumerate(SKILL_OPTIONS):
+                color = (
+                    (255, 255, 0)
+                    if i == state.skill_selection
+                    else (200, 200, 200)
+                )
+                prefix = "-> " if i == state.skill_selection else "   "
+                skill_text = small_font.render(
+                    f"{prefix}{skill.name}", True, color
+                )
+                screen.blit(skill_text, (220, 240 + i * 30))
+
         if getattr(engine, "game_won", False):
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
             overlay.set_alpha(220)
@@ -604,7 +665,6 @@ def main() -> None:
                 elif event.key == pygame.K_F5:
                     try:
                         engine.save_game("savegame.json")
-                        print("Spiel gespeichert.")
                     except DungeonError as e:
                         print(f"Fehler beim Speichern: {e}")
                 elif event.key == pygame.K_F9 or event.key == pygame.K_l:
@@ -612,17 +672,54 @@ def main() -> None:
                         engine = Engine.load_game("savegame.json")
                         state.show_inventory = False
                         state.show_shop = False
-                        print("Spiel geladen.")
                     except DungeonError as e:
                         print(f"Fehler beim Laden: {e}")
                 elif event.key == pygame.K_DELETE:
                     try:
-                        if Engine.delete_game("savegame.json"):
-                            print("Spielstand erfolgreich gelöscht.")
-                        else:
-                            print("Kein Spielstand zum Löschen gefunden.")
+                        Engine.delete_game("savegame.json")
                     except DungeonError as e:
                         print(f"Fehler: {e}")
+                elif event.key == pygame.K_k:
+                    if engine.player.skill_points > 0 or state.show_skills:
+                        state.show_skills = not state.show_skills
+                        state.skill_selection = 0
+
+                elif state.show_skills:
+                    if event.key in (pygame.K_w, pygame.K_UP):
+                        state.skill_selection = max(
+                            0, state.skill_selection - 1
+                        )
+                    elif event.key in (pygame.K_s, pygame.K_DOWN):
+                        state.skill_selection = min(
+                            len(SKILL_OPTIONS) - 1, state.skill_selection + 1
+                        )
+                    elif event.key in (pygame.K_e, pygame.K_RETURN):
+                        selected = SKILL_OPTIONS[state.skill_selection]
+
+                        if selected.stat_name == "hp":
+                            engine.player.base_stats.max_hp += selected.val_int
+                            engine.player.base_stats.hp += selected.val_int
+                        else:
+                            curr = getattr(
+                                engine.player.base_stats, selected.stat_name
+                            )
+                            if selected.is_float:
+                                setattr(
+                                    engine.player.base_stats,
+                                    selected.stat_name,
+                                    curr + selected.val_float,
+                                )
+                            else:
+                                setattr(
+                                    engine.player.base_stats,
+                                    selected.stat_name,
+                                    curr + selected.val_int,
+                                )
+
+                        engine.player.skill_points -= 1
+
+                        if engine.player.skill_points <= 0:
+                            state.show_skills = False
 
                 elif state.show_shop:
                     active_list = (
