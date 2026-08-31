@@ -4,10 +4,12 @@ Kernlogik des Spiels inklusive Map-Verwaltung, Kampfabwicklung und Spielstandsve
 
 import json
 import math
+import os
 import random
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from enum import Enum
+from typing import Any
 
 from dungeon_autobattler.models import (
     Character,
@@ -20,6 +22,15 @@ from dungeon_autobattler.models import (
     SaveGameError,
     Stats,
 )
+
+
+class EnumEncoder(json.JSONEncoder):
+    """Konvertiert Enums für die JSON-Speicherung in ihre primitiven Werte."""
+
+    def default(self, o: Any) -> Any:
+        if isinstance(o, Enum):
+            return o.value
+        return super().default(o)
 
 
 class TileType(Enum):
@@ -352,7 +363,7 @@ class Engine:
         }
         try:
             with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(data, f)
+                json.dump(data, f, cls=EnumEncoder)
         except OSError as e:
             raise SaveGameError(f"Fehler beim Speichern: {e}") from e
 
@@ -446,3 +457,21 @@ class Engine:
             return engine
         except (OSError, json.JSONDecodeError, KeyError, ValueError) as e:
             raise LoadGameError(f"Fehler beim Laden: {e}") from e
+
+    @staticmethod
+    def delete_game(filepath: str) -> bool:
+        """
+        Löscht den angegebenen Spielstand vom Datenträger.
+
+        Returns:
+            True, wenn die Datei erfolgreich gelöscht wurde, False wenn sie nicht existiert.
+        """
+        try:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+                return True
+            return False
+        except OSError as e:
+            raise DungeonError(
+                f"Fehler beim Löschen des Spielstands: {e}"
+            ) from e

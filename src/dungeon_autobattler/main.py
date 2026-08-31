@@ -604,6 +604,7 @@ def main() -> None:
                 elif event.key == pygame.K_F5:
                     try:
                         engine.save_game("savegame.json")
+                        print("Spiel gespeichert.")
                     except DungeonError as e:
                         print(f"Fehler beim Speichern: {e}")
                 elif event.key == pygame.K_F9 or event.key == pygame.K_l:
@@ -611,8 +612,17 @@ def main() -> None:
                         engine = Engine.load_game("savegame.json")
                         state.show_inventory = False
                         state.show_shop = False
+                        print("Spiel geladen.")
                     except DungeonError as e:
                         print(f"Fehler beim Laden: {e}")
+                elif event.key == pygame.K_DELETE:
+                    try:
+                        if Engine.delete_game("savegame.json"):
+                            print("Spielstand erfolgreich gelöscht.")
+                        else:
+                            print("Kein Spielstand zum Löschen gefunden.")
+                    except DungeonError as e:
+                        print(f"Fehler: {e}")
 
                 elif state.show_shop:
                     active_list = (

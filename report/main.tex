@@ -50,8 +50,19 @@
 \subsection{Motivation}
 % Warum dieses Projekt?
 \subsection{Zielsetzung}
-% Variante der Projektskizze: Was soll die Software am Ende können? (Minimalanforderungen)
+Das primäre Ziel dieses Projekts ist die Entwicklung eines 2D-Dungeon-Crawlers mit integrierten Autobattler-Kampfmechaniken. Die Software soll es dem Spieler ermöglichen, einen Charakter über eine zweidimensionale, in Felder unterteilte Karte zu bewegen, auf der sich Hindernisse, reguläre Gegner und mindestens ein Bossgegner befinden.
 
+Um die grundlegenden Projektanforderungen (Erfolgskriterien) zu erfüllen, muss am Ende ein vollständig spielbarer Durchlauf (Run) gewährleistet sein. Diese Minimalanforderung umfasst konkret:
+\begin{itemize}
+    \item Die fehlerfreie Fortbewegung des Spielers auf der Karte.
+    \item Das Auslösen eines Kampfes, sobald ein Gegnerfeld betreten wird.
+    \item Eine funktionierende Autobattler-Kampflogik, bei der Kämpfe automatisch anhand festgelegter Regeln, Charakterwerte (Lebenspunkte, Angriffsstärke, Verteidigung) und Items berechnet und ausgeführt werden.
+    \item Die Möglichkeit, gegen mehrere reguläre Gegner sowie einen Boss zu kämpfen.
+    \item Die korrekte Ermittlung und Anzeige von Sieg- oder Niederlagebedingungen sowie die Implementierung von Gold als Währung.
+    \item Die Funktionalität, den aktuellen Spielstand zu speichern, zu laden und wieder zu löschen.
+\end{itemize}
+
+Um über diese Mindestanforderungen hinauszugehen und den vollen geplanten Projektumfang auszuschöpfen, sind zusätzliche Erweiterungen (,,Nice-to-have``) vorgesehen. Zu diesen zählen die Implementierung einer grafischen Benutzeroberfläche (GUI) anstelle einer reinen Konsolenanwendung, ein Level- und Skill-System für den Charakter sowie ein In-Game-Shop. Ferner sollen komplexe Item-Mechaniken mit verschiedenen Seltenheitsgraden (von ,,Common`` bis ,,Legendary``) und Zauber in das Kampfsystem integriert werden, um die Spieltiefe zu erhöhen.
 \section{Theoretische Grundlagen \& Werkzeuge}
 \subsection{Technologien \& Bibliotheken}
 % Welche Pakete/Bibliotheken kamen zum Einsatz? (z.B. ruff, mypy, pytest, externe APIs)
