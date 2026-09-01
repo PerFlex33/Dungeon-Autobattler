@@ -49,8 +49,9 @@
 \section{Einleitung}
 \subsection{Motivation}
 Die Motivation für die Wahl des Projektthemas entstand durch das Hörbuch Dungeon Crawler Carl.
-Die Wahl ein Dungeon Crawler als Projektgrundlage zu nehmen eignet sich gut, da man die Komplexität der Spielmechaniken beliebig an den Projektumfang anpassen kann.
-So kann man die geforderten Minimalanforderungen sicher umsetzen und gleichzeitig genug spielraum zu haben um Optionale features hinzuzufügen.
+Die Wahl, einen Dungeon Crawler als Projektgrundlage zu nehmen, eignet sich gut, da man die Komplexität der Spielmechaniken beliebig an den Projektumfang anpassen kann.
+So kann man die geforderten Minimalanforderungen sicher umsetzen und hat gleichzeitig genug Spielraum, um optionale Features hinzuzufügen.
+
 \subsection{Zielsetzung}
 Das primäre Ziel dieses Projekts ist die Entwicklung eines 2D-Dungeon-Crawlers mit integrierten Autobattler-Kampfmechaniken.
 Die Software soll es dem Spieler ermöglichen, einen Charakter über eine zweidimensionale, in Felder unterteilte Karte zu bewegen, auf der sich Hindernisse, reguläre Gegner und mindestens ein Bossgegner befinden.
@@ -69,6 +70,7 @@ Diese Minimalanforderung umfasst konkret:
 Um über diese Mindestanforderungen hinauszugehen und den vollen geplanten Projektumfang auszuschöpfen, sind zusätzliche Erweiterungen (,,Nice-to-have``) vorgesehen.
 Zu diesen zählen die Implementierung einer grafischen Benutzeroberfläche (GUI) anstelle einer reinen Konsolenanwendung, ein Level- und Skill-System für den Charakter sowie ein In-Game-Shop.
 Ferner sollen komplexe Item-Mechaniken mit verschiedenen Seltenheitsgraden (von ,,Common`` bis ,,Legendary``) und Zauber in das Kampfsystem integriert werden, um die Spieltiefe zu erhöhen.
+
 \section{Theoretische Grundlagen \& Werkzeuge}
 \subsection{Technologien \& Bibliotheken}
 % Welche Pakete/Bibliotheken kamen zum Einsatz? (z.B. ruff, mypy, pytest, externe APIs)
@@ -84,10 +86,11 @@ Dies stellt die Code-Qualität sicher und automatisiert die Überprüfung ausgew
     \item Durch die gewählte Konfiguration in der \texttt{pyproject.toml} wird zudem sichergestellt, dass auch die im Code eingebetteten Doctests (\texttt{-{}-doctest-modules}) fehlerfrei durchlaufen.
     \item \textbf{Dokumentation (interrogate):} Um den Grad der Code-Dokumentation kontinuierlich zu überwachen und sicherzustellen, dass die angestrebte Abdeckung von mindestens 80\,\% erreicht wird, wurde Interrogate mit einem entsprechenden Schwellenwert in die CI-Pipeline integriert.
 \end{itemize}
+
 \subsection{Mensch vs. KI: Die Rolle von AI Assistance}
 Im Rahmen der Projektentwicklung wurde bewusst mit KI sowohl bei der Planung als auch bei der Codegenerierung gearbeitet.
 Dabei wurde unter anderem getestet, wie sich spezialisierte Tools wie der PyCharm AI Agent im Vergleich zu chatbasierten Modellen wie Gemini und Claude bei Programmieraufgaben schlagen.
-Ziel war es, repetitive Aufgaben zu automatisieren (Wie z. B.\ das Erstellen von Items) und den Fokus auf die Umsetzung der Kernlogik und die Erfüllung der formalen Code-Qualitätskriterien zu legen.
+Ziel war es, repetitive Aufgaben zu automatisieren (wie z.\,B.\ das Erstellen von Items) und den Fokus auf die Umsetzung der Kernlogik und die Erfüllung der formalen Code-Qualitätskriterien zu legen.
 
 \subsection{KI-Konsultation bei Design-Entscheidungen}
 Bereits in der Planungsphase wurden LLMs (insbesondere Gemini, da ich dabei ein Jahr Probeabo habe) konsultiert, um die Projektstruktur und das Setup festzulegen.
@@ -95,23 +98,22 @@ Die KI lieferte wertvolle Tipps für die Konfiguration der PyCharm-Umgebungsvari
 Auch bei Systemen, wie der prozeduralen Makrowelt-Generierung und dem Charakter-Level-System, lieferten die Modelle gute Startpunkte.
 
 \subsection{Prompt-Engineering \& Iteration}
-Ich habe beim Programmieren habe ich in der Anfangsphase den eingebauten KI Agent in PyCharm ausprobiert.
-Dieser hat sich aber relativ schnell als nutzlos erwiesen, da der Agent bei mir nicht mit uv klargekommen ist, sondern immer pip Befehle verwendet hat und dadurch in Fehlerschleifen gelaufen ist.
-Außerdem ist schnell klargeworden, dass man die Prompts klein halten muss und auf einzelne Funktionen beschränken muss, da die KI
-1.
-schnell halluziniert und
-2.
-Man verliert einfach den Überblick über den Code, wenn die KI zu viel generiert, selbst wenn man sich intensiv mit dem generierten Code beschäftigt.
+Beim Programmieren habe ich in der Anfangsphase den eingebauten KI-Agenten in PyCharm ausprobiert.
+Dieser hat sich aber relativ schnell als nutzlos erwiesen, da der Agent bei mir nicht mit uv klargekommen ist, sondern immer pip-Befehle verwendet hat und dadurch in Fehlerschleifen gelaufen ist.
+Außerdem ist schnell klar geworden, dass man die Prompts klein halten und auf einzelne Funktionen beschränken muss, da die KI
+1. schnell halluziniert und man
+2. einfach den Überblick über den Code verliert, wenn die KI zu viel generiert, selbst wenn man sich intensiv mit dem generierten Code beschäftigt.
+
 Mein Vorgehen war also folgendermaßen:
-Wenn es nicht um Codegenerierung, sondern um konzeptionelle Dinge geht, habe ich meistens nach mehreren Möglichkeiten gefragt, wo ich mir die beste von ausgesucht habe oder dadurch andere Optionen gesehen habe.
-Wenn es um Codegenerierung geht, hatte ich am meisten Erfolg, wenn ich die Prompts auf spezifische Funktionen begrenze und/ oder bereits ein Muster vorlege, an welchem sich die KI orientieren kann.
+Wenn es nicht um Codegenerierung, sondern um konzeptionelle Dinge geht, habe ich meistens nach mehreren Möglichkeiten gefragt, von denen ich mir die beste ausgesucht habe oder wodurch ich andere Optionen gesehen habe.
+Wenn es um Codegenerierung geht, hatte ich am meisten Erfolg, wenn ich die Prompts auf spezifische Funktionen begrenzte und/oder bereits ein Muster vorlegte, an welchem sich die KI orientieren konnte.
 Leider war es der KI so gut wie nie möglich, Code zu generieren, welcher keine Fehler durch Ruff oder Mypy enthalten hat.
-Die meisten konnte man aber schnell beim Ausführen von Ruff/ Mypy beheben.
-Dass man per Hand die Fehler beheben musste, ist seltener vorgekommen und nur, wenn die Prompts zu aufwändig waren.
+Die meisten konnte man aber schnell beim Ausführen von Ruff/Mypy beheben.
+Dass man per Hand die Fehler beheben musste, ist seltener vorgekommen und nur, wenn die Prompts zu aufwendig waren.
 Typisierungsfehler in den Tests, die durch Inkompatibilitäten zwischen \texttt{pytest} und \texttt{mypy} auftraten, mussten vollständig händisch aufgelöst werden, da die LLMs diese strikten Konstellationen häufig halluzinierten oder schlichtweg veraltete Syntax vorschlugen.
 
 Nachdem der Code generiert wurde, habe ich mir diesen angeguckt und überprüft, ob es überhaupt sinnvoll ist, was generiert wurde.
-Oft hatte ich das Problem, dass der Code zwar auf den ersten Blick funktioniert, aber nicht oder sehr schwer erweiterbar ist.
+Oft hatte ich das Problem, dass der Code zwar auf den ersten Blick funktionierte, aber nicht oder nur sehr schwer erweiterbar war.
 War das der Fall, habe ich die Prompts angepasst oder selbst den Code verbessert.
 Daraufhin habe ich den Code ins Programm eingesetzt und getestet.
 % Generelle Vorüberlegungen zum Einsatz von LLMs im Entwicklungsprozess.
@@ -140,9 +142,9 @@ Die wichtigste Designentscheidung war die Entkopplung der Pygame-GUI von der \te
 Wäre die Spiellogik direkt mit der Darstellung verwoben worden, ließe sich das formale Erfolgskriterium der automatisierten Testbarkeit mittels \texttt{pytest} kaum umsetzen.
 Durch die Kapselung der Logik können Kämpfe oder Kartenbewegungen in den Tests ohne grafische Oberfläche und deterministisch simuliert werden.
 
-Für das Speichern/Ladens des Spielstands fiel die Wahl auf das JSON-Format in Kombination mit einem \texttt{EnumEncoder}.
-Alternativen wie \texttt{pickle} wurden verworfen, während der Einsatz einer relationalen Datenbank zu aufwändig und unnötig wäre.
-JSON bietet hier den idealen Kompromiss aus einfacher Implementierung und der Möglichkeit, Speicherstände zu Debugging-Zwecken menschenlesbar zu haben.
+Für das Speichern/Laden des Spielstands fiel die Wahl auf das JSON-Format in Kombination mit einem \texttt{EnumEncoder}.
+Alternativen wie \texttt{pickle} wurden verworfen, während der Einsatz einer relationalen Datenbank zu aufwendig und unnötig wäre.
+JSON bietet hier den idealen Kompromiss aus einfacher Implementierung und der Möglichkeit, Speicherstände zu Debugging-Zwecken menschenlesbar zu halten.
 Außerdem haben wir es bereits so in Übungen gemacht.
 
 Um die Gegenstände für das geplante „Nice-to-have“-Feature der Item-Seltenheiten (von „Common“ bis „Legendary“) umzusetzen, wurde ein Factory-Ansatz gewählt.
@@ -190,9 +192,9 @@ Der Funktionsnachweis kann über das bereitgestellte GitHub-Repository (\url{htt
 Ein typischer Durchlauf beginnt in einem zentralen Chunk der 8x8 Felder großen Welt.
 Der Spieler bewegt sich via Tastatursteuerung über die Karte.
 Betritt er ein Gegnerfeld, öffnet sich das Kampf-Overlay und die \texttt{Engine} führt den rundenbasierten Autobattler-Kampf anhand der aktuellen Stats aus.
-Fehlerhafte Nutzereingaben, wie der Versuch, einen ungültigen Zug (mehr als 1 Feld) auszuführen, werden systemseitig durch die \texttt{InvalidMoveError}-Exception abgefangen, ohne dass das Programm abstürzt.
+Fehlerhafte Nutzereingaben, wie der Versuch, einen ungültigen Zug (mehr als ein Feld) auszuführen, werden systemseitig durch die \texttt{InvalidMoveError}-Exception abgefangen, ohne dass das Programm abstürzt.
 Ebenso sind Lade- und Speichervorgänge robust: Fehlt die \texttt{savegame.json}, wird dies durch einen \texttt{LoadGameError} quittiert und sicher behandelt, anstatt das Spiel zu beenden.
-Nach erfolgreichen Kämpfen erhält der Spieler Gold und Erfahrungspunkte, levelt auf, dropt Items, stattet sich im Shop mit skalierter Ausrüstung aus und tritt schließlich gegen den Boss an, um das Spiel zu gewinnen.
+Nach erfolgreichen Kämpfen erhält der Spieler Gold und Erfahrungspunkte, levelt auf, droppt Items, stattet sich im Shop mit skalierter Ausrüstung aus und tritt schließlich gegen den Boss an, um das Spiel zu gewinnen.
 
 \section{Diskussion \& Fazit}
 \subsection{Inwiefern wurde das Ziel erreicht?}
@@ -204,26 +206,26 @@ Auch die formalen Anforderungen des Moduls (wie \texttt{mypy --strict}, CI/CD-Pi
 Wie bereits in der Projektskizze als mögliches Risiko benannt, nahm die Erstellung der GUI mit Pygame deutlich mehr Zeit in Anspruch als die einer reinen Konsolenanwendung.
 Dies erforderte State-Management für die verschiedenen UI-Overlays (Inventar, Shop, Kampf, Skills).
 Eine bewusste Abweichung vom ursprünglichen Plan betrifft die Implementierung von aktiven „Zaubern“.
-Diese passen in den momentanen Spielfluss gerade noch nicht rein.
+Diese passen in den momentanen Spielfluss gerade noch nicht hinein.
 Stattdessen wurde die Komplexität auf passive Statuswerte, Rüstungs-Slots und skalierende Item-Effekte verlagert.
 
 \subsection{Kritische Würdigung \& Reflexion}
 Die strikte architektonische Trennung von Spiellogik (\texttt{engine.py}) und Darstellung (\texttt{main.py}) war essenziell, da nur so ein sinnvolles automatisiertes Testen (\texttt{pytest}) der Kernmechaniken möglich blieb.
 Ohne diese Entkopplung wäre eine Headless-Ausführung in der CI-Pipeline gescheitert.
-Unerwartete Probleme traten primär in der Zusammenarbeit mit KI-Assistenten auf, da diese im Kontext strenger Linter-Regeln (Ruff) und Typisierungs-Vorgaben (\texttt{mypy --strict}) häufig fehlerhaften Code generierten, was kritische manuelle Nachbesserungen (z.B. bei SystemExit-Abbrüchen in Tests) erforderte.
-Das Balancing kann defenitif noch verbessert werden.
-Gerade ist es fast nur durch das Starke Crit scaling möglich zu gewinnen.
+Unerwartete Probleme traten primär in der Zusammenarbeit mit KI-Assistenten auf, da diese im Kontext strenger Linter-Regeln (Ruff) und Typisierungs-Vorgaben (\texttt{mypy --strict}) häufig fehlerhaften Code generierten, was kritische manuelle Nachbesserungen (z.\,B. bei SystemExit-Abbrüchen in Tests) erforderte.
+Das Balancing kann definitiv noch verbessert werden.
+Gerade ist es fast nur durch das starke Crit-Scaling möglich, zu gewinnen.
+
 \subsection{Ausblick}
 Man kann das Spiel noch viel weiter bringen.
-Der nächste Schritt wäre, dass man nach dem ersten Boss in ein neues Dungeon kommt, wo man weiter Spielt und versucht immer Tiefer zu kommen.
-Ab ebene 3 würde man sich dann eine Klasse aussuchen und versuchen so weit wie möglich zu kommen.
+Der nächste Schritt wäre, dass man nach dem ersten Boss in einen neuen Dungeon kommt, wo man weiterspielt und versucht, immer tiefer zu kommen.
+Ab Ebene 3 würde man sich dann eine Klasse aussuchen und versuchen, so weit wie möglich zu kommen.
 \newpage
 
-\newpage
 \section*{Eigenständigkeitserklärung}
 
 Hiermit versichere ich, Felix Weßels (Matrikelnummer: 3175987), dass ich die vorliegende Hausarbeit im Modul „Einführung in Python“ mit dem Titel „Dungeon Autobattler“ selbstständig verfasst und keine anderen als die im Bericht angegebenen Hilfsmittel, Werkzeuge und Quellen benutzt habe.
-Gemäß den Vorgaben erkläre ich ausdrücklich, dass der Einsatz von KI, ausschließlich wie in dem im Projektbericht beschriebenen Umfang stattgefunden hat.
+Gemäß den Vorgaben erkläre ich ausdrücklich, dass der Einsatz von KI ausschließlich in dem im Projektbericht beschriebenen Umfang stattgefunden hat.
 Es wurden nur genau die Werkzeuge genutzt, die im Bericht auch erwähnt werden.
 \vspace{2cm}
 
