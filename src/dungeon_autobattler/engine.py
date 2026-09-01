@@ -185,6 +185,7 @@ class Engine:
         self.shop_items: list[Item] = []
         self.combat_log: list[str] = []
         self.game_won: bool = False
+        self.game_lost: bool = False
 
     def spawn_enemy(
         self, cx: int, cy: int, x: int, y: int, enemy: Character
@@ -336,6 +337,8 @@ class Engine:
                         ]
                         self.player_pos = new_pos
                         return True
+                    self.game_lost = True
+                    self.combat_log.append("Du bist im Kampf gefallen!")
                     return False
 
             elif tile == TileType.CHEST:

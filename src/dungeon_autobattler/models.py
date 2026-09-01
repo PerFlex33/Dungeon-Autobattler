@@ -311,11 +311,11 @@ class Character:
             >>> char.base_stats.hp
             15
 
-            Die HP fallen nie unter 0:
+        Die Basis-HP können negativ werden, um Item-Boni auszugleichen:
 
-            >>> char.take_damage(100)
-            >>> char.base_stats.hp
-            0
+        >>> char.take_damage(100)
+        >>> char.base_stats.hp
+        -85
 
             >>> char.take_damage(-1)
             Traceback (most recent call last):
@@ -324,7 +324,7 @@ class Character:
         """
         if amount < 0:
             raise ValueError("Schadenswert darf nicht negativ sein.")
-        self.base_stats.hp = max(0, self.base_stats.hp - amount)
+        self.base_stats.hp -= amount
 
     def gain_xp(self, amount: int) -> bool:
         """Erhöht die XP des Charakters und führt bei Erreichen der Grenze ein Level-Up durch.

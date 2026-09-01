@@ -643,6 +643,25 @@ def main() -> None:
             screen.blit(
                 sub_text, (SCREEN_WIDTH // 2 - 110, SCREEN_HEIGHT // 2 + 30)
             )
+        if getattr(engine, "game_lost", False):
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+            overlay.set_alpha(220)
+            overlay.fill((30, 0, 0))  # Leicht rötlicher Schleier
+            screen.blit(overlay, (0, 0))
+
+            lose_text = font.render(
+                "NIEDERLAGE! Du bist gestorben.", True, (255, 100, 100)
+            )
+            screen.blit(
+                lose_text, (SCREEN_WIDTH // 2 - 160, SCREEN_HEIGHT // 2 - 20)
+            )
+
+            sub_text = small_font.render(
+                "Drücke ESCAPE zum Beenden", True, (255, 255, 255)
+            )
+            screen.blit(
+                sub_text, (SCREEN_WIDTH // 2 - 110, SCREEN_HEIGHT // 2 + 30)
+            )
 
         pygame.display.flip()
 
@@ -654,7 +673,9 @@ def main() -> None:
     running = True
     while running:
         for event in pygame.event.get():
-            if getattr(engine, "game_won", False):
+            if getattr(engine, "game_won", False) or getattr(
+                engine, "game_lost", False
+            ):
                 if (
                     event.type == pygame.KEYDOWN
                     and event.key == pygame.K_ESCAPE

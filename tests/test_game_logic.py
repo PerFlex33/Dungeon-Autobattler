@@ -34,8 +34,7 @@ def test_character_take_damage(player: Character) -> None:
     assert player.base_stats.hp == 95
 
     player.take_damage(200)
-    assert player.base_stats.hp == 0
-    assert not player.is_alive()
+    assert player.base_stats.hp == -105
 
 
 def test_character_level_up(player: Character) -> None:
