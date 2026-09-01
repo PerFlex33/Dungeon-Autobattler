@@ -66,11 +66,14 @@ Diese Minimalanforderung umfasst konkret:
     \item Die Funktionalität, den aktuellen Spielstand zu speichern, zu laden und wieder zu löschen.
 \end{itemize}
 
-Um über diese Mindestanforderungen hinauszugehen und den vollen geplanten Projektumfang auszuschöpfen, sind zusätzliche Erweiterungen (,,Nice-to-have``) vorgesehen. Zu diesen zählen die Implementierung einer grafischen Benutzeroberfläche (GUI) anstelle einer reinen Konsolenanwendung, ein Level- und Skill-System für den Charakter sowie ein In-Game-Shop. Ferner sollen komplexe Item-Mechaniken mit verschiedenen Seltenheitsgraden (von ,,Common`` bis ,,Legendary``) und Zauber in das Kampfsystem integriert werden, um die Spieltiefe zu erhöhen.
+Um über diese Mindestanforderungen hinauszugehen und den vollen geplanten Projektumfang auszuschöpfen, sind zusätzliche Erweiterungen (,,Nice-to-have``) vorgesehen.
+Zu diesen zählen die Implementierung einer grafischen Benutzeroberfläche (GUI) anstelle einer reinen Konsolenanwendung, ein Level- und Skill-System für den Charakter sowie ein In-Game-Shop.
+Ferner sollen komplexe Item-Mechaniken mit verschiedenen Seltenheitsgraden (von ,,Common`` bis ,,Legendary``) und Zauber in das Kampfsystem integriert werden, um die Spieltiefe zu erhöhen.
 \section{Theoretische Grundlagen \& Werkzeuge}
 \subsection{Technologien \& Bibliotheken}
 % Welche Pakete/Bibliotheken kamen zum Einsatz? (z.B. ruff, mypy, pytest, externe APIs)
-Um die formalen Anforderungen des Projekts von Beginn an strukturiert zu erfüllen, wurde der Entwicklungsprozess durch lokale pre-commit-Hooks und eine automatisierte CI-Pipeline mittels GitHub Actions unterstützt. Dies stellt die kontinuierliche Code-Qualität sicher und automatisiert die Überprüfung ausgewählter Erfolgskriterien:
+Um die formalen Anforderungen des Projekts von Beginn an strukturiert zu erfüllen, wurde der Entwicklungsprozess durch lokale pre-commit-Hooks und eine automatisierte CI-Pipeline mittels GitHub Actions unterstützt.
+Dies stellt die Code-Qualität sicher und automatisiert die Überprüfung ausgewählter Erfolgskriterien:
 
 \begin{itemize}
     \item \textbf{GitHub Actions:} Bei jedem Push wird automatisiert eine Testumgebung (Ubuntu, Python 3.12) initiiert.
@@ -82,46 +85,140 @@ Um die formalen Anforderungen des Projekts von Beginn an strukturiert zu erfüll
     \item \textbf{Dokumentation (interrogate):} Um den Grad der Code-Dokumentation kontinuierlich zu überwachen und sicherzustellen, dass die angestrebte Abdeckung von mindestens 80\,\% erreicht wird, wurde Interrogate mit einem entsprechenden Schwellenwert in die CI-Pipeline integriert.
 \end{itemize}
 \subsection{Mensch vs. KI: Die Rolle von AI Assistance}
+Im Rahmen der Projektentwicklung wurde bewusst mit KI sowohl bei der Planung als auch bei der Codegenerierung gearbeitet.
+Dabei wurde unter anderem getestet, wie sich spezialisierte Tools wie der PyCharm AI Agent im Vergleich zu chatbasierten Modellen wie Gemini und Claude bei Programmieraufgaben schlagen.
+Ziel war es, repetitive Aufgaben zu automatisieren (Wie z. B.\ das Erstellen von Items) und den Fokus auf die Umsetzung der Kernlogik und die Erfüllung der formalen Code-Qualitätskriterien zu legen.
+
+\subsection{KI-Konsultation bei Design-Entscheidungen}
+Bereits in der Planungsphase wurden LLMs (insbesondere Gemini, da ich dabei ein Jahr Probeabo habe) konsultiert, um die Projektstruktur und das Setup festzulegen.
+Die KI lieferte wertvolle Tipps für die Konfiguration der PyCharm-Umgebungsvariablen und der \texttt{pre-commit}-Hooks, um die formalen Codekriterien abzusichern.
+Auch bei Systemen, wie der prozeduralen Makrowelt-Generierung und dem Charakter-Level-System, lieferten die Modelle gute Startpunkte.
+
+\subsection{Prompt-Engineering \& Iteration}
+Ich habe beim Programmieren habe ich in der Anfangsphase den eingebauten KI Agent in PyCharm ausprobiert.
+Dieser hat sich aber relativ schnell als nutzlos erwiesen, da der Agent bei mir nicht mit uv klargekommen ist, sondern immer pip Befehle verwendet hat und dadurch in Fehlerschleifen gelaufen ist.
+Außerdem ist schnell klargeworden, dass man die Prompts klein halten muss und auf einzelne Funktionen beschränken muss, da die KI
+1.
+schnell halluziniert und
+2.
+Man verliert einfach den Überblick über den Code, wenn die KI zu viel generiert, selbst wenn man sich intensiv mit dem generierten Code beschäftigt.
+Mein Vorgehen war also folgendermaßen:
+Wenn es nicht um Codegenerierung, sondern um konzeptionelle Dinge geht, habe ich meistens nach mehreren Möglichkeiten gefragt, wo ich mir die beste von ausgesucht habe oder dadurch andere Optionen gesehen habe.
+Wenn es um Codegenerierung geht, hatte ich am meisten Erfolg, wenn ich die Prompts auf spezifische Funktionen begrenze und/ oder bereits ein Muster vorlege, an welchem sich die KI orientieren kann.
+Leider war es der KI so gut wie nie möglich, Code zu generieren, welcher keine Fehler durch Ruff oder Mypy enthalten hat.
+Die meisten konnte man aber schnell beim Ausführen von Ruff/ Mypy beheben.
+Dass man per Hand die Fehler beheben musste, ist seltener vorgekommen und nur, wenn die Prompts zu aufwändig waren.
+Typisierungsfehler in den Tests, die durch Inkompatibilitäten zwischen \texttt{pytest} und \texttt{mypy} auftraten, mussten vollständig händisch aufgelöst werden, da die LLMs diese strikten Konstellationen häufig halluzinierten oder schlichtweg veraltete Syntax vorschlugen.
+
+Nachdem der Code generiert wurde, habe ich mir diesen angeguckt und überprüft, ob es überhaupt sinnvoll ist, was generiert wurde.
+Oft hatte ich das Problem, dass der Code zwar auf den ersten Blick funktioniert, aber nicht oder sehr schwer erweiterbar ist.
+War das der Fall, habe ich die Prompts angepasst oder selbst den Code verbessert.
+Daraufhin habe ich den Code ins Programm eingesetzt und getestet.
 % Generelle Vorüberlegungen zum Einsatz von LLMs im Entwicklungsprozess.
 
 \section{Konzept \& Implementierung}
 \subsection{Programmstruktur, Kernlogik \& Datenverarbeitung}
-% Architektur beschreiben. Vermeiden: Code Zeile für Zeile nacherzählen!
-% Stattdessen konzeptionelle Entscheidungen erklären.
+Die Architektur des Dungeon Autobattlers basiert auf einer strikten Trennung von Benutzeroberfläche und Geschäftslogik, um Wartbarkeit und Testbarkeit zu gewährleisten.
+Das Projekt ist in modulare Komponenten unterteilt:
+\begin{itemize}
+    \item \textbf{Datenmodelle (\texttt{models.py}):} Alle Entitäten des Spiels, wie Stats, Items und Charaktere, sind mithilfe von Python-Dataclasses strukturiert.
+    \item Dies ermöglicht eine saubere Kapselung der Attribute und vereinfacht die Typisierung.
+    \item \textbf{Spiellogik (\texttt{engine.py}):} Die zentrale \texttt{Engine}-Klasse agiert als Controller.
+    \item Sie verwaltet den globalen Spielzustand, validiert Spielerbewegungen, löst Interaktionen (wie Shop-Besuche) aus und berechnet die Autobattler-Kämpfe in einer in sich geschlossenen Schleife.
+    \item \textbf{Weltgenerierung (\texttt{generator.py}):} Die \texttt{DungeonGenerator}-Klasse nutzt für die Welt einen randomisierten Depth-First-Search-Algorithmus (Spanning Tree), um zusammenhängende Kartenabschnitte zu garantieren, während die einzelnen Chunks durch einen „Random Walk“ generiert werden.
+    \item \textbf{Präsentation (\texttt{main.py}):} Die grafische Umsetzung erfolgt über Pygame, wobei die Hauptschleife ausschließlich für das Rendering, das UI-State-Management und das Abfangen von Tastatureingaben zuständig ist.
+    \item \textbf{Item-Generierung (\texttt{item\_factory.py}):} Dieses Modul dient als zentrales System zur dynamischen Erstellung von Beute und dem Shop-Inventar.
+    \item Ausgehend von einer Datenbank aus Basis-Gegenständen (\texttt{BASE\_ITEMS}) werden zufällige Ausrüstungsgegenstände generiert, deren Attribute (Stats) und Preise mit ihrer spezifischen Seltenheitsstufe (\texttt{Rarity}) skaliert werden.
+    \item Während flache Werte wie Angriffsschaden oder Rüstung linear ansteigen, bleiben prozentuale Attribute (wie die kritische Trefferchance) bewusst unskaliert, um die Spielbalance zu wahren.
+\end{itemize}
 
 \subsection{Warum so?}
-% Wahl bestimmter Entwurfsmuster, OOP vs. funktional.
-% Welche Alternativen wurden verworfen und warum? (Begründe Entscheidungen!)
+Für die Umsetzung der Spielmechanik wurde ein objektorientierter Ansatz gewählt.
+Spielentitäten wie Spieler, Gegner oder Ausrüstungsgegenstände besitzen komplexe, veränderliche Zustände (beispielsweise aktuelle Lebenspunkte oder getragene Items), die sich durch Klassen und Methoden kapseln und verwalten lassen.
 
-\subsection{KI-Konsultation bei Design-Entscheidungen}
-% Wurde die KI bei Planung/Architektur gefragt?
-% Was wurde übernommen, wo wurde abgewichen (aufgrund menschlicher Logik)?
+Die wichtigste Designentscheidung war die Entkopplung der Pygame-GUI von der \texttt{Engine}.
+Wäre die Spiellogik direkt mit der Darstellung verwoben worden, ließe sich das formale Erfolgskriterium der automatisierten Testbarkeit mittels \texttt{pytest} kaum umsetzen.
+Durch die Kapselung der Logik können Kämpfe oder Kartenbewegungen in den Tests ohne grafische Oberfläche und deterministisch simuliert werden.
 
-\subsection{Code-Generierung: Was wurde wie programmiert?}
-\textbf{KI-generiert:} % Welche Module/Funktionen/Tests (z.B. Boilerplate, Regex)? Warum war es hier sinnvoll?
-\newline
-\textbf{Selbst programmiert:} % Kernlogiken, Workarounds, weil KI den Kontext nicht verstand.
+Für das Speichern/Ladens des Spielstands fiel die Wahl auf das JSON-Format in Kombination mit einem \texttt{EnumEncoder}.
+Alternativen wie \texttt{pickle} wurden verworfen, während der Einsatz einer relationalen Datenbank zu aufwändig und unnötig wäre.
+JSON bietet hier den idealen Kompromiss aus einfacher Implementierung und der Möglichkeit, Speicherstände zu Debugging-Zwecken menschenlesbar zu haben.
+Außerdem haben wir es bereits so in Übungen gemacht.
 
-\subsection{Prompt-Engineering \& Iteration}
-% Wie sah die Zusammenarbeit aus? Wurde Code blind übernommen oder manuell korrigiert (Halluzinationen)?
+Um die Gegenstände für das geplante „Nice-to-have“-Feature der Item-Seltenheiten (von „Common“ bis „Legendary“) umzusetzen, wurde ein Factory-Ansatz gewählt.
+Anstatt hunderte individuelle Items mit statischen Werten manuell zu deklarieren, trennt die \texttt{item\_factory.py} die Basis-Templates strikt von der Skalierungslogik.
+Dieser prozedurale Ansatz hält den Code wartbar und ermöglichte es, das globale Balancing von Preisen oder Schadenswerten über einfache Multiplikator-Dictionaries (\texttt{RARITY\_MULTIPLIERS}) anzupassen.
 
 \section{Ergebnisse}
 \subsection{Funktionsnachweis}
-% Outputs, Plots oder Screenshots einbinden, um Funktionalität zu belegen.
-% Link zum Quelltext: \url{https://github.com/DeinName/DeinRepo} oder Hinweis auf Sciebo-Upload.
-https://github.com/PerFlex33/Dungeon-Autobattler.git
+Das fertige Projekt erfüllt sämtliche in der Projektskizze definierten Minimalanforderungen sowie einen Großteil der angestrebten „Nice-to-have“-Erweiterungen.
+Ein vollständiger Spieldurchlauf ist möglich, inklusive der Bewegung auf der generierten Welt, automatisierter Autobattler-Kämpfe und der Funktionalität, den Spielzustand zu speichern, zu laden und zu löschen.
+Der gesamte Quellcode ist modular strukturiert, mit Type-Hints versehen und hält die geforderte Dokumentationsabdeckung von über 80\,\% ein.
+Der Funktionsnachweis kann über das bereitgestellte GitHub-Repository (\url{https://github.com/PerFlex33/Dungeon-Autobattler.git}) nachvollzogen werden.
+\newline
+\begin{figure}[htbp]
+    \centering
+    % Erste Reihe: Shop und Inventar
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Screenshot 2026-09-01 150628.png}
+        \caption{Ansicht des Shop-Systems}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Screenshot 2026-09-01 150707.png}
+        \caption{Charakter-Stats und Inventar}
+    \end{minipage}
+
+    \vspace{0.5cm} % Abstand zwischen den Reihen
+
+    % Zweite Reihe: Sieg und Niederlage
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Screenshot 2026-09-01 151340.png}
+        \caption{Sieg-Bildschirm nach dem Bosskampf}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Screenshot 2026-09-01 151410.png}
+        \caption{Niederlage-Bildschirm}
+    \end{minipage}
+
+    \caption{Übersicht der grafischen Benutzeroberfläche (GUI) des Dungeon Autobattlers.}
+    \label{fig:gui_showcase}
+\end{figure}
+
 \subsection{Beispiel-Durchlauf}
-% Zeige, dass auch falsche Nutzereingaben behandelt werden und nicht zum Absturz führen.
+Ein typischer Durchlauf beginnt in einem zentralen Chunk der 8x8 Felder großen Welt.
+Der Spieler bewegt sich via Tastatursteuerung über die Karte.
+Betritt er ein Gegnerfeld, öffnet sich das Kampf-Overlay und die \texttt{Engine} führt den rundenbasierten Autobattler-Kampf anhand der aktuellen Stats aus.
+Fehlerhafte Nutzereingaben, wie der Versuch, einen ungültigen Zug (mehr als 1 Feld) auszuführen, werden systemseitig durch die \texttt{InvalidMoveError}-Exception abgefangen, ohne dass das Programm abstürzt.
+Ebenso sind Lade- und Speichervorgänge robust: Fehlt die \texttt{savegame.json}, wird dies durch einen \texttt{LoadGameError} quittiert und sicher behandelt, anstatt das Spiel zu beenden.
+Nach erfolgreichen Kämpfen erhält der Spieler Gold und Erfahrungspunkte, levelt auf, dropt Items, stattet sich im Shop mit skalierter Ausrüstung aus und tritt schließlich gegen den Boss an, um das Spiel zu gewinnen.
 
 \section{Diskussion \& Fazit}
 \subsection{Inwiefern wurde das Ziel erreicht?}
-\subsection{Herausforderungen \& Abweichung vom Plan}
-% Was lief nicht wie geplant? Welche Features aus der Projektskizze wurden weggelassen/geändert?
-\subsection{Kritische Würdigung \& Reflexion}
-% Was lief gut, wo gab es unerwartete Probleme (Technik oder KI-Zusammenarbeit)? Was würdest du nächstes Mal anders machen?
-\subsection{Ausblick}
-% Darf subjektiv sein. Welche Features könnten in Zukunft hinzugefügt werden?
+Das primäre Ziel, einen voll funktionsfähigen 2D-Dungeon-Crawler mit Autobattler-Kampfmechanik zu entwickeln, wurde vollständig erreicht.
+Zudem wurden Erweiterungen wie eine grafische Oberfläche mit Pygame, ein umfangreiches Level- und Skill-System sowie ein Item-System mit fünf Seltenheitsgraden (Common bis Legendary) erfolgreich in das finale Spiel integriert.
+Auch die formalen Anforderungen des Moduls (wie \texttt{mypy --strict}, CI/CD-Pipeline und Exception-Handling) wurden umgesetzt.
 
+\subsection{Herausforderungen \& Abweichung vom Plan}
+Wie bereits in der Projektskizze als mögliches Risiko benannt, nahm die Erstellung der GUI mit Pygame deutlich mehr Zeit in Anspruch als die einer reinen Konsolenanwendung.
+Dies erforderte State-Management für die verschiedenen UI-Overlays (Inventar, Shop, Kampf, Skills).
+Eine bewusste Abweichung vom ursprünglichen Plan betrifft die Implementierung von aktiven „Zaubern“.
+Diese passen in den momentanen Spielfluss gerade noch nicht rein.
+Stattdessen wurde die Komplexität auf passive Statuswerte, Rüstungs-Slots und skalierende Item-Effekte verlagert.
+
+\subsection{Kritische Würdigung \& Reflexion}
+Die strikte architektonische Trennung von Spiellogik (\texttt{engine.py}) und Darstellung (\texttt{main.py}) war essenziell, da nur so ein sinnvolles automatisiertes Testen (\texttt{pytest}) der Kernmechaniken möglich blieb.
+Ohne diese Entkopplung wäre eine Headless-Ausführung in der CI-Pipeline gescheitert.
+Unerwartete Probleme traten primär in der Zusammenarbeit mit KI-Assistenten auf, da diese im Kontext strenger Linter-Regeln (Ruff) und Typisierungs-Vorgaben (\texttt{mypy --strict}) häufig fehlerhaften Code generierten, was kritische manuelle Nachbesserungen (z.B. bei SystemExit-Abbrüchen in Tests) erforderte.
+Das Balancing kann defenitif noch verbessert werden.
+Gerade ist es fast nur durch das Starke Crit scaling möglich zu gewinnen.
+\subsection{Ausblick}
+Man kann das Spiel noch viel weiter bringen.
+Der nächste Schritt wäre, dass man nach dem ersten Boss in ein neues Dungeon kommt, wo man weiter Spielt und versucht immer Tiefer zu kommen.
+Ab ebene 3 würde man sich dann eine Klasse aussuchen und versuchen so weit wie möglich zu kommen.
 \newpage
 \printbibliography
 
