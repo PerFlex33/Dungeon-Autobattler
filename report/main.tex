@@ -48,11 +48,15 @@
 
 \section{Einleitung}
 \subsection{Motivation}
-% Warum dieses Projekt?
+Die Motivation für die Wahl des Projektthemas entstand durch das Hörbuch Dungeon Crawler Carl.
+Die Wahl ein Dungeon Crawler als Projektgrundlage zu nehmen eignet sich gut, da man die Komplexität der Spielmechaniken beliebig an den Projektumfang anpassen kann.
+So kann man die geforderten Minimalanforderungen sicher umsetzen und gleichzeitig genug spielraum zu haben um Optionale features hinzuzufügen.
 \subsection{Zielsetzung}
-Das primäre Ziel dieses Projekts ist die Entwicklung eines 2D-Dungeon-Crawlers mit integrierten Autobattler-Kampfmechaniken. Die Software soll es dem Spieler ermöglichen, einen Charakter über eine zweidimensionale, in Felder unterteilte Karte zu bewegen, auf der sich Hindernisse, reguläre Gegner und mindestens ein Bossgegner befinden.
+Das primäre Ziel dieses Projekts ist die Entwicklung eines 2D-Dungeon-Crawlers mit integrierten Autobattler-Kampfmechaniken.
+Die Software soll es dem Spieler ermöglichen, einen Charakter über eine zweidimensionale, in Felder unterteilte Karte zu bewegen, auf der sich Hindernisse, reguläre Gegner und mindestens ein Bossgegner befinden.
 
-Um die grundlegenden Projektanforderungen (Erfolgskriterien) zu erfüllen, muss am Ende ein vollständig spielbarer Durchlauf (Run) gewährleistet sein. Diese Minimalanforderung umfasst konkret:
+Um die grundlegenden Projektanforderungen (Erfolgskriterien) zu erfüllen, muss am Ende ein vollständig spielbarer Durchlauf (Run) gewährleistet sein.
+Diese Minimalanforderung umfasst konkret:
 \begin{itemize}
     \item Die fehlerfreie Fortbewegung des Spielers auf der Karte.
     \item Das Auslösen eines Kampfes, sobald ein Gegnerfeld betreten wird.
@@ -66,6 +70,17 @@ Um über diese Mindestanforderungen hinauszugehen und den vollen geplanten Proje
 \section{Theoretische Grundlagen \& Werkzeuge}
 \subsection{Technologien \& Bibliotheken}
 % Welche Pakete/Bibliotheken kamen zum Einsatz? (z.B. ruff, mypy, pytest, externe APIs)
+Um die formalen Anforderungen des Projekts von Beginn an strukturiert zu erfüllen, wurde der Entwicklungsprozess durch lokale pre-commit-Hooks und eine automatisierte CI-Pipeline mittels GitHub Actions unterstützt. Dies stellt die kontinuierliche Code-Qualität sicher und automatisiert die Überprüfung ausgewählter Erfolgskriterien:
+
+\begin{itemize}
+    \item \textbf{GitHub Actions:} Bei jedem Push wird automatisiert eine Testumgebung (Ubuntu, Python 3.12) initiiert.
+    \item Dies verifiziert, dass das Projekt umgebungsunabhängig und reproduzierbar lauffähig ist.
+    \item \textbf{Statische Code-Analyse \& Formatierung (Ruff):} Die Pipeline trennt die Überprüfung in zwei Schritte.
+    \item Der Befehl \texttt{ruff check} analysiert den Code auf syntaktische Fehler und Warnungen, während \texttt{ruff format -{}-check} die strikte Einhaltung eines einheitlichen Styleguides garantiert.
+    \item \textbf{Testautomatisierung (pytest):} Die automatisierte Ausführung verifiziert die Kernlogik des Programms.
+    \item Durch die gewählte Konfiguration in der \texttt{pyproject.toml} wird zudem sichergestellt, dass auch die im Code eingebetteten Doctests (\texttt{-{}-doctest-modules}) fehlerfrei durchlaufen.
+    \item \textbf{Dokumentation (interrogate):} Um den Grad der Code-Dokumentation kontinuierlich zu überwachen und sicherzustellen, dass die angestrebte Abdeckung von mindestens 80\,\% erreicht wird, wurde Interrogate mit einem entsprechenden Schwellenwert in die CI-Pipeline integriert.
+\end{itemize}
 \subsection{Mensch vs. KI: Die Rolle von AI Assistance}
 % Generelle Vorüberlegungen zum Einsatz von LLMs im Entwicklungsprozess.
 
@@ -94,6 +109,7 @@ Um über diese Mindestanforderungen hinauszugehen und den vollen geplanten Proje
 \subsection{Funktionsnachweis}
 % Outputs, Plots oder Screenshots einbinden, um Funktionalität zu belegen.
 % Link zum Quelltext: \url{https://github.com/DeinName/DeinRepo} oder Hinweis auf Sciebo-Upload.
+https://github.com/PerFlex33/Dungeon-Autobattler.git
 \subsection{Beispiel-Durchlauf}
 % Zeige, dass auch falsche Nutzereingaben behandelt werden und nicht zum Absturz führen.
 

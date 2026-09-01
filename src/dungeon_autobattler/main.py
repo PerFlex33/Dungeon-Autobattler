@@ -1,3 +1,5 @@
+"""Haupteinstiegspunkt für das Spiel mit Pygame-GUI."""
+
 import random
 import sys
 from dataclasses import dataclass
@@ -49,6 +51,8 @@ SKILL_OPTIONS = [
 
 @dataclass
 class UIState:
+    """Speichert den aktuellen Status der Benutzeroberfläche streng typisiert."""
+
     show_inventory: bool = False
     inv_selection: int = 0
     show_shop: bool = False
@@ -59,6 +63,7 @@ class UIState:
 
 
 def main() -> None:
+    """Initialisiert Pygame und startet den Main-Loop."""
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Dungeon Autobattler - Macro World")
@@ -151,6 +156,7 @@ def main() -> None:
     slot_order = list(display_slots.keys())
 
     def draw_scene(current_enemy: Character | None = None) -> None:
+        """Rendert in jedem Frame die Karte, UI-Overlays, Shops und das dynamische Inventar."""
         screen.fill((30, 30, 30))
 
         for y, row in enumerate(engine.game_map.tiles):
@@ -665,6 +671,7 @@ def main() -> None:
                 elif event.key == pygame.K_F5:
                     try:
                         engine.save_game("savegame.json")
+                        print("Spiel gespeichert.")
                     except DungeonError as e:
                         print(f"Fehler beim Speichern: {e}")
                 elif event.key == pygame.K_F9 or event.key == pygame.K_l:
@@ -672,11 +679,15 @@ def main() -> None:
                         engine = Engine.load_game("savegame.json")
                         state.show_inventory = False
                         state.show_shop = False
+                        print("Spiel geladen.")
                     except DungeonError as e:
                         print(f"Fehler beim Laden: {e}")
                 elif event.key == pygame.K_DELETE:
                     try:
-                        Engine.delete_game("savegame.json")
+                        if Engine.delete_game("savegame.json"):
+                            print("Spielstand erfolgreich gelöscht.")
+                        else:
+                            print("Kein Spielstand zum Löschen gefunden.")
                     except DungeonError as e:
                         print(f"Fehler: {e}")
                 elif event.key == pygame.K_k:

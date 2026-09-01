@@ -21,4 +21,5 @@ disallow_untyped_decorators = false
 
 [tool.pytest.ini_options]
 addopts = "--doctest-modules"
-testpaths = ["src", "tests"]
+testpaths = ["src/dungeon_autobattler", "tests"]
+pythonpath = ["."]

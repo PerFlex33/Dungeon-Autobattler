@@ -1,3 +1,5 @@
+"""Spiellogik: Karten, Bewegung, Kampfauflösung sowie Speichern/Laden."""
+
 import json
 import math
 import os
@@ -21,13 +23,32 @@ from dungeon_autobattler.models import (
 
 
 class EnumEncoder(json.JSONEncoder):
+    """JSON-Encoder, der ``Enum``-Mitglieder als ihren ``.value`` serialisiert.
+
+    Wird beim Speichern des Spielstands verwendet, damit z.B.
+    ``TileType`` oder ``Rarity`` als einfache Strings in der JSON-Datei
+    landen.
+
+    Examples:
+        >>> import json
+        >>> json.dumps({"tile": TileType.WALL}, cls=EnumEncoder)
+        '{"tile": "#"}'
+    """
+
     def default(self, o: Any) -> Any:
+        """Gibt für Enum-Instanzen ``o.value`` zurück, sonst Standardverhalten."""
         if isinstance(o, Enum):
             return o.value
         return super().default(o)
 
 
 class TileType(Enum):
+    """Mögliche Feldtypen auf der Karte.
+
+    >>> TileType.WALL.value
+    '#'
+    """
+
     EMPTY = "."
     WALL = "#"
     ENEMY = "E"
@@ -40,15 +61,46 @@ class TileType(Enum):
 
 @dataclass
 class Position:
+    """Eine Koordinate auf einer ``GameMap``.
+
+    Attributes:
+        x: X-Koordinate (Spalte).
+        y: Y-Koordinate (Zeile).
+    """
+
     x: int
     y: int
 
     def __add__(self, other: "Position") -> "Position":
+        """Addiert zwei Positionen komponentenweise.
+
+        Examples:
+            >>> Position(2, 3) + Position(1, -1)
+            Position(x=3, y=2)
+        """
         return Position(self.x + other.x, self.y + other.y)
 
 
 class GameMap:
+    """
+    Ein einzelner Kartenausschnitt (Chunk) aus begehbaren und blockierten Feldern.
+
+    Attributes:
+        width: Breite der Karte in Feldern.
+        height: Höhe der Karte in Feldern.
+        tiles: Zweidimensionale Liste (Zeile für Zeile) von ``TileType``.
+    """
+
     def __init__(self, width: int, height: int) -> None:
+        """Erzeugt eine ``width`` x ``height`` große Karte, komplett mit ``EMPTY`` gefüllt.
+
+        Examples:
+            >>> game_map = GameMap(3, 2)
+            >>> game_map.width, game_map.height
+            (3, 2)
+            >>> game_map.tiles[0][0]
+            <TileType.EMPTY: '.'>
+        """
         self.width = width
         self.height = height
         self.tiles = [
@@ -56,16 +108,62 @@ class GameMap:
         ]
 
     def is_walkable(self, pos: Position) -> bool:
+        """Prüft, ob ein Feld innerhalb der Karte liegt und keine Wand ist.
+
+        Args:
+            pos: Die zu prüfende Position.
+
+        Returns:
+            True, wenn ``pos`` innerhalb der Karte liegt und begehbar ist.
+
+        Examples:
+            >>> game_map = GameMap(3, 3)
+            >>> game_map.set_tile(1, 1, TileType.WALL)
+            >>> game_map.is_walkable(Position(1, 1))
+            False
+            >>> game_map.is_walkable(Position(0, 0))
+            True
+            >>> game_map.is_walkable(Position(-1, 0))
+            False
+        """
         if not (0 <= pos.x < self.width and 0 <= pos.y < self.height):
             return False
         return self.tiles[pos.y][pos.x] != TileType.WALL
 
     def set_tile(self, x: int, y: int, tile_type: TileType) -> None:
+        """Setzt den Feldtyp an Position ``(x, y)``, sofern sie innerhalb der Karte liegt.
+
+        Koordinaten außerhalb der Karte werden stillschweigend ignoriert.
+
+        Examples:
+            >>> game_map = GameMap(2, 2)
+            >>> game_map.set_tile(0, 0, TileType.CHEST)
+            >>> game_map.tiles[0][0]
+            <TileType.CHEST: 'C'>
+            >>> game_map.set_tile(99, 99, TileType.WALL)
+        """
         if 0 <= x < self.width and 0 <= y < self.height:
             self.tiles[y][x] = tile_type
 
 
 class Engine:
+    """
+    Zentrale Spiel-Engine: verwaltet Spieler, Welt, Gegner, Kampf sowie Speicherstände.
+
+    Attributes:
+        player: Der vom Menschen gesteuerte Charakter.
+        world_chunks: Zweidimensionales Raster aus ``GameMap``-Chunks.
+        chunk_x: Spalte des aktuell aktiven Chunks.
+        chunk_y: Zeile des aktuell aktiven Chunks.
+        game_map: Referenz auf die aktuell aktive ``GameMap``.
+        player_pos: Aktuelle Position des Spielers innerhalb des Chunks.
+        difficulty: Globaler Schwierigkeitsgrad-Multiplikator.
+        enemies: Abbildung von ``(chunk_x, chunk_y, x, y)`` auf lebende Gegner.
+        shop_items: Aktuelles Warenangebot des Shops.
+        combat_log: Chronologisches Protokoll aller Kampf- und Ereignistexte.
+        game_won: True, sobald der Boss besiegt wurde.
+    """
+
     def __init__(
         self,
         player: Character,
@@ -75,6 +173,7 @@ class Engine:
         start_pos: Position,
         difficulty: float = 1.0,
     ) -> None:
+        """Initialisiert die Engine mit Spieler, Welt und Startposition."""
         self.player = player
         self.world_chunks = world_chunks
         self.chunk_x = start_chunk_x
@@ -90,6 +189,26 @@ class Engine:
     def spawn_enemy(
         self, cx: int, cy: int, x: int, y: int, enemy: Character
     ) -> None:
+        """Platziert einen Gegner auf der Karte und registriert ihn in ``enemies``.
+
+        Args:
+            cx: Chunk-Spalte, in der der Gegner erscheint.
+            cy: Chunk-Zeile, in der der Gegner erscheint.
+            x: X-Position innerhalb des Chunks.
+            y: Y-Position innerhalb des Chunks.
+            enemy: Der zu platzierende Charakter (i.d.R. ein ``Enemy``).
+
+        Examples:
+            >>> from dungeon_autobattler.models import Stats, create_enemy, EnemyType
+            >>> player = Character("Held", Stats(hp=50, max_hp=50, ad=10), [])
+            >>> chunk = GameMap(5, 5)
+            >>> engine = Engine(player, [[chunk]], 0, 0, Position(0, 0))
+            >>> engine.spawn_enemy(0, 0, 2, 2, create_enemy(EnemyType.GOBLIN))
+            >>> chunk.tiles[2][2]
+            <TileType.ENEMY: 'E'>
+            >>> (0, 0, 2, 2) in engine.enemies
+            True
+        """
         self.world_chunks[cy][cx].set_tile(x, y, TileType.ENEMY)
         self.enemies[(cx, cy, x, y)] = enemy
 
@@ -99,6 +218,43 @@ class Engine:
         dy: int,
         ui_callback: Callable[[Character], None] | None = None,
     ) -> bool:
+        """Bewegt den Spieler um ein Feld und löst dabei Kämpfe/Truhen/Shop-Interaktionen aus.
+
+        Über die Kartenränder hinweg wird automatisch in den benachbarten
+        Chunk gewechselt (sofern vorhanden und begehbar). Läuft der
+        Spieler auf ein Gegnerfeld, wird automatisch :meth:`resolve_combat`
+        aufgerufen.
+
+        Args:
+            dx: Verschiebung in X-Richtung, muss in ``{-1, 0, 1}`` liegen.
+            dy: Verschiebung in Y-Richtung, muss in ``{-1, 0, 1}`` liegen.
+            ui_callback: Optionaler Callback, der während eines Kampfes
+                nach jedem Angriff mit dem aktuellen Gegner aufgerufen wird.
+
+        Returns:
+            True, wenn die Bewegung (bzw. die daraus resultierende
+            Aktion) erfolgreich war, sonst False.
+
+        Raises:
+            InvalidMoveError: Wenn ``dx`` oder ``dy`` betragsmäßig größer
+                als 1 ist.
+
+        Examples:
+            >>> player = Character("Held", Stats(hp=50, max_hp=50, ad=10), [])
+            >>> chunk = GameMap(5, 5)
+            >>> engine = Engine(player, [[chunk]], 0, 0, Position(1, 1))
+            >>> engine.move_player(1, 0)
+            True
+            >>> engine.player_pos
+            Position(x=2, y=1)
+
+            Ein zu großer Schritt ist ungültig:
+
+            >>> engine.move_player(2, 0)
+            Traceback (most recent call last):
+                ...
+            dungeon_autobattler.models.InvalidMoveError: Spieler kann nur maximal 1 Feld ziehen.
+        """
         if abs(dx) > 1 or abs(dy) > 1:
             raise InvalidMoveError("Spieler kann nur maximal 1 Feld ziehen.")
         if dx == 0 and dy == 0:
@@ -249,6 +405,41 @@ class Engine:
         enemy: Character,
         ui_callback: Callable[[Character], None] | None = None,
     ) -> bool:
+        """Führt einen vollständig automatisierten Autobattler-Kampf gegen ``enemy`` aus.
+
+        Spieler und Gegner greifen abwechselnd an (Spieler zuerst), bis
+        eine der beiden Seiten keine HP mehr hat. Alle Ereignisse landen
+        in ``self.combat_log``.
+
+        Args:
+            enemy: Der Gegner, gegen den gekämpft wird.
+            ui_callback: Optionaler Callback nach jedem Angriff, z.B. für
+                eine grafische Aktualisierung.
+
+        Returns:
+            True, wenn der Spieler den Kampf überlebt, False, wenn er stirbt.
+
+        Raises:
+            DungeonError: Wenn Spieler oder Gegner zu Kampfbeginn bereits tot sind.
+
+        Examples:
+            Ein übermächtiger Spieler gewinnt deterministisch:
+
+            >>> starker_spieler = Character(
+            ...     "Held",
+            ...     Stats(hp=1000, max_hp=1000, ad=500, accuracy=1000),
+            ...     [],
+            ... )
+            >>> schwacher_gegner = Character(
+            ...     "Ratte", Stats(hp=1, max_hp=1, ad=0, accuracy=0), []
+            ... )
+            >>> chunk = GameMap(3, 3)
+            >>> engine = Engine(starker_spieler, [[chunk]], 0, 0, Position(0, 0))
+            >>> engine.resolve_combat(schwacher_gegner)
+            True
+            >>> schwacher_gegner.is_alive()
+            False
+        """
         if not self.player.is_alive():
             raise DungeonError("Ein toter Spieler kann nicht kämpfen.")
         if not enemy.is_alive():
@@ -271,6 +462,19 @@ class Engine:
         return self.player.is_alive()
 
     def _execute_attack(self, attacker: Character, defender: Character) -> None:
+        """Berechnet Treffer, kritischen Treffer und Schaden eines einzelnen Angriffs.
+
+        Die Trefferchance ergibt sich aus der Genauigkeit des Angreifers
+        gegenüber dem (gedämpften) Ausweichwert des Verteidigers; die
+        Schadensreduktion durch Rüstung folgt einer sättigenden Formel,
+        die niemals mehr als 90% des Schadens abfängt. Das Ergebnis
+        wird als Text an ``self.combat_log`` angehängt.
+
+        Args:
+            attacker: Der angreifende Charakter.
+            defender: Der sich verteidigende Charakter, dessen HP bei
+                einem Treffer reduziert werden.
+        """
         att = attacker.current_stats
         deff = defender.current_stats
 
@@ -306,6 +510,26 @@ class Engine:
         )
 
     def save_game(self, filepath: str) -> None:
+        """Serialisiert den kompletten Spielzustand als JSON-Datei.
+
+        Args:
+            filepath: Zielpfad der Speicherdatei.
+
+        Raises:
+            SaveGameError: Wenn die Datei aus einem Betriebssystemgrund
+                (z.B. fehlende Berechtigung) nicht geschrieben werden kann.
+
+        Examples:
+            >>> import tempfile, os
+            >>> player = Character("Held", Stats(hp=50, max_hp=50, ad=10), [])
+            >>> chunk = GameMap(3, 3)
+            >>> engine = Engine(player, [[chunk]], 0, 0, Position(0, 0))
+            >>> with tempfile.TemporaryDirectory() as tmp:
+            ...     path = os.path.join(tmp, "save.json")
+            ...     engine.save_game(path)
+            ...     os.path.exists(path)
+            True
+        """
         chunks_data = []
         for cy, row in enumerate(self.world_chunks):
             row_data = []
@@ -346,6 +570,42 @@ class Engine:
 
     @classmethod
     def load_game(cls, filepath: str) -> "Engine":
+        """Lädt einen zuvor mit :meth:`save_game` geschriebenen Spielstand.
+
+        Args:
+            filepath: Pfad der zu ladenden Speicherdatei.
+
+        Returns:
+            Eine neu erzeugte ``Engine``-Instanz mit rekonstruiertem Zustand.
+
+        Raises:
+            LoadGameError: Wenn die Datei fehlt, kein gültiges JSON enthält
+                oder Pflichtfelder fehlen/ungültig sind.
+
+        Examples:
+            Ein Spielstand lässt sich nach dem Speichern wieder laden und
+            liefert denselben Kern-Zustand zurück:
+
+            >>> import tempfile, os
+            >>> player = Character("Held", Stats(hp=50, max_hp=50, ad=10), [])
+            >>> chunk = GameMap(3, 3)
+            >>> engine = Engine(player, [[chunk]], 0, 0, Position(1, 1))
+            >>> with tempfile.TemporaryDirectory() as tmp:
+            ...     path = os.path.join(tmp, "save.json")
+            ...     engine.save_game(path)
+            ...     geladen = Engine.load_game(path)
+            >>> geladen.player.name
+            'Held'
+            >>> geladen.player_pos
+            Position(x=1, y=1)
+
+            Eine nicht existierende Datei führt zu einem klaren Fehler:
+
+            >>> Engine.load_game("/pfad/existiert/nicht.json")
+            Traceback (most recent call last):
+                ...
+            dungeon_autobattler.models.LoadGameError: Fehler beim Laden: ...
+        """
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -438,6 +698,28 @@ class Engine:
 
     @staticmethod
     def delete_game(filepath: str) -> bool:
+        """Löscht eine Speicherdatei, falls sie existiert.
+
+        Args:
+            filepath: Pfad der zu löschenden Speicherdatei.
+
+        Returns:
+            True, wenn eine Datei gelöscht wurde, False, wenn keine existierte.
+
+        Raises:
+            DungeonError: Wenn das Löschen aus einem Betriebssystemgrund fehlschlägt.
+
+        Examples:
+            >>> import tempfile, os
+            >>> with tempfile.TemporaryDirectory() as tmp:
+            ...     path = os.path.join(tmp, "save.json")
+            ...     Engine.delete_game(path)
+            ...     with open(path, "w") as f:
+            ...         _ = f.write("{}")
+            ...     Engine.delete_game(path)
+            False
+            True
+        """
         try:
             if os.path.exists(filepath):
                 os.remove(filepath)

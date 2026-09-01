@@ -1,3 +1,5 @@
+"""Erzeugung und Skalierung von Items für Loot und Shop."""
+
 import copy
 import random
 
@@ -213,7 +215,28 @@ BASE_CONSUMABLES = [
 
 
 def _scale_stats(base_stats: Stats, multiplier: float) -> Stats:
-    """Skaliert alle ganzzahligen Stats mit dem Multiplikator."""
+    """Skaliert alle ganzzahligen Stats mit dem Multiplikator.
+
+    Kritische Trefferchance und -multiplikator werden bewusst
+    unverändert übernommen, da sie bereits Prozent- bzw.
+    Faktor-Werte sind und nicht linear mit den übrigen Stats
+    skaliert werden sollen.
+
+    Args:
+        base_stats: Die ungewichteten Basiswerte eines Items.
+        multiplier: Der Skalierungsfaktor (i.d.R. aus ``RARITY_MULTIPLIERS``).
+
+    Returns:
+        Ein neues ``Stats``-Objekt mit skalierten ganzzahligen Werten.
+
+    Examples:
+        >>> base = Stats(hp=10, max_hp=10, ad=6, armor=2)
+        >>> scaled = _scale_stats(base, 2.0)
+        >>> scaled.hp, scaled.ad, scaled.armor
+        (20, 12, 4)
+        >>> scaled.crit_chance == base.crit_chance
+        True
+    """
     return Stats(
         hp=int(base_stats.hp * multiplier),
         max_hp=int(base_stats.max_hp * multiplier),
@@ -227,7 +250,27 @@ def _scale_stats(base_stats: Stats, multiplier: float) -> Stats:
 
 
 def generate_random_equipment(forced_rarity: Rarity | None = None) -> Item:
-    """Zieht ein zufälliges Base-Item, weist ihm eine Seltenheit zu und skaliert die Werte."""
+    """Zieht ein zufälliges Base-Item, weist ihm eine Seltenheit zu und skaliert die Werte.
+
+    Args:
+        forced_rarity: Wenn angegeben, wird statt einer zufällig
+            gewürfelten Seltenheit genau diese verwendet (z.B. für
+            garantierten Loot aus verschlossenen Truhen).
+
+    Returns:
+        Ein neues ``Item`` mit an die Seltenheit angepasstem Namenspräfix,
+        skalierten Stats und skaliertem Preis.
+
+    Examples:
+        Mit ``forced_rarity`` ist das Ergebnis auch ohne festen Seed
+        deterministisch in Bezug auf Seltenheit und Namenspräfix:
+
+        >>> item = generate_random_equipment(forced_rarity=Rarity.LEGENDARY)
+        >>> item.rarity
+        <Rarity.LEGENDARY: 'legendary'>
+        >>> item.name.startswith("Legendäres")
+        True
+    """
     base_item = random.choice(BASE_ITEMS)
 
     if forced_rarity:
@@ -262,7 +305,25 @@ def generate_random_equipment(forced_rarity: Rarity | None = None) -> Item:
 
 
 def generate_shop_inventory(count: int = 5) -> list[Item]:
-    """Generiert ein zufälliges Inventar für den Shop."""
+    """Generiert ein zufälliges Inventar für den Shop.
+
+    Jeder Eintrag ist mit 30%-Wahrscheinlichkeit ein zufälliges
+    Verbrauchsgut aus ``BASE_CONSUMABLES`` und ansonsten ein über
+    :func:`generate_random_equipment` erzeugtes Ausrüstungsstück.
+
+    Args:
+        count: Anzahl der zu generierenden Items.
+
+    Returns:
+        Eine Liste mit ``count`` neuen ``Item``-Objekten.
+
+    Examples:
+        >>> inventory = generate_shop_inventory(count=5)
+        >>> len(inventory)
+        5
+        >>> all(isinstance(item, Item) for item in inventory)
+        True
+    """
     inventory = []
     for _ in range(count):
         if random.random() < 0.3:
